@@ -11,7 +11,8 @@ class Profile(models.Model):
     )
     address = models.TextField(blank=True)
     date_of_birth = models.DateField(null=True, blank=True)
-
+    latitude = models.FloatField(null=True, blank=True, verbose_name="Широта")
+    longitude = models.FloatField(null=True, blank=True, verbose_name="Долгота")
     def __str__(self):
         return f"Profile of {self.user.username}"
 

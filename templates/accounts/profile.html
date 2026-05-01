@@ -2,17 +2,22 @@
 {% block title %}Мой профиль{% endblock %}
 
 {% block content %}
-<div class="row">
+<div class="row justify-content-center">
     <div class="col-md-8">
-        <h2>Профиль пользователя</h2>
-        <p><strong>Имя пользователя:</strong> {{ user.username }}</p>
-        <p><strong>Email:</strong> {{ user.email }}</p>
-        <p><strong>Телефон:</strong> {{ profile.phone|default:"—" }}</p>
-        <p><strong>Адрес:</strong> {{ profile.address|default:"—" }}</p>
-        <p><strong>Дата рождения:</strong> {{ profile.date_of_birth|default:"—" }}</p>
-        
-        <a href="{% url 'accounts:edit_profile' %}" class="btn btn-primary">Редактировать профиль</a>
-        <a href="{% url 'shop:index' %}" class="btn btn-secondary">В магазин</a>
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h4>👤 Профиль — {{ user.username }}</h4>
+            </div>
+            <div class="card-body">
+                <p><strong>Email:</strong> {{ user.email|default:"—" }}</p>
+                <p><strong>Телефон:</strong> {{ profile.phone|default:"—" }}</p>
+                <p><strong>Адрес доставки:</strong> {{ profile.address|default:"—" }}</p>
+                <p><strong>Дата рождения:</strong> {{ profile.date_of_birth|date:"d.m.Y"|default:"—" }}</p>
+
+                <a href="{% url 'accounts:edit_profile' %}" class="btn btn-primary">✏️ Редактировать профиль</a>
+                <a href="{% url 'shop:index' %}" class="btn btn-secondary">Перейти в магазин</a>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
