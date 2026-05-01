@@ -5,15 +5,22 @@ from django.contrib import messages
 from .forms import RegistrationForm, ProfileForm
 from .models import Profile
 from django.contrib.auth.forms import AuthenticationForm
+from django.contrib.auth.models import Group
+
+
 def register(request):
     if request.method == 'POST':
         form = RegistrationForm(request.POST)
         if form.is_valid():
             user = form.save()
-            # Создаём Profile автоматически
             Profile.objects.create(user=user)
+
+            # Добавляем пользователя в группу Customer
+            customer_group = Group.objects.get(name='Customer')
+            user.groups.add(customer_group)
+
             login(request, user)
-            messages.success(request, 'Регистрация прошла успешно!')
+            messages.success(request, 'Регистрация прошла успешно! Добро пожаловать!')
             return redirect('accounts:profile')
     else:
         form = RegistrationForm()
@@ -45,7 +52,26 @@ def user_logout(request):
 
 @login_required
 def profile(request):
-    return render(request, 'accounts/profile.html', {'profile': request.user.profile})
+    user = request.user
+    profile_obj = user.profile
+
+    # Определяем роль
+    if user.groups.filter(name="Manager").exists():
+        role = "Менеджер"
+        role_class = "bg-warning"
+    elif user.groups.filter(name="Customer").exists():
+        role = "Покупатель"
+        role_class = "bg-success"
+    else:
+        role = "Без роли"
+        role_class = "bg-secondary"
+
+    context = {
+        'profile': profile_obj,
+        'role': role,
+        'role_class': role_class,
+    }
+    return render(request, 'accounts/profile.html', context)
 
 
 @login_required
