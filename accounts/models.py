@@ -11,8 +11,37 @@ class Profile(models.Model):
     )
     address = models.TextField(blank=True)
     date_of_birth = models.DateField(null=True, blank=True)
+
+
+    avatar = models.ImageField(
+        upload_to='avatars/',
+        blank=True,
+        null=True,
+        verbose_name="Аватарка"
+    )
+    favorite_team = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Любимая команда"
+    )
+    shirt_size = models.CharField(
+        max_length=5,
+        choices=[
+            ('XS', 'XS'), ('S', 'S'), ('M', 'M'),
+            ('L', 'L'), ('XL', 'XL'), ('XXL', 'XXL')
+        ],
+        blank=True,
+        verbose_name="Размер формы"
+    )
+    favorite_player = models.CharField(
+        max_length=100,
+        blank=True,
+        verbose_name="Любимый игрок"
+    )
+
     latitude = models.FloatField(null=True, blank=True, verbose_name="Широта")
     longitude = models.FloatField(null=True, blank=True, verbose_name="Долгота")
+
     def __str__(self):
         return f"Profile of {self.user.username}"
 

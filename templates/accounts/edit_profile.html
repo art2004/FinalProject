@@ -1,62 +1,99 @@
 {% extends 'base.html' %}
-{% block title %}Редактировать профиль{% endblock %}
+{% block title %}Редактирование профиля{% endblock %}
 
 {% block extra_css %}
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
 <style>
-    #map { height: 450px; border-radius: 8px; }
-    .search-container { margin-bottom: 10px; }
+    #map { height: 420px; border-radius: 10px; }
+    .avatar-preview {
+        width: 160px;
+        height: 160px;
+        object-fit: cover;
+        border-radius: 50%;
+        border: 5px solid #0d6efd;
+    }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
-    <div class="col-lg-8">
+    <div class="col-lg-9">
         <div class="card shadow">
-            <div class="card-header bg-primary text-white text-center">
+            <div class="card-header bg-primary text-white text-center py-3">
                 <h4>✏️ Редактирование профиля</h4>
             </div>
+
             <div class="card-body">
-                <form method="post" id="profile-form">
+                <form method="post" enctype="multipart/form-data" id="profile-form">
                     {% csrf_token %}
 
-                    <div class="mb-4">
-                        <label class="form-label">Номер телефона</label>
-                        {{ form.phone }}
-                        <div class="form-text">{{ form.phone.help_text }}</div>
+                    <!-- Аватарка с предпросмотром -->
+                    <div class="mb-4 text-center">
+                        <label class="form-label fw-bold">Аватарка</label><br>
+
+                        <img id="avatar-preview"
+                             src="{% if profile.avatar %}{{ profile.avatar.url }}{% else %}https://via.placeholder.com/160x160?text=Аватар{% endif %}"
+                             alt="Предпросмотр"
+                             class="avatar-preview mb-3">
+
+                        {{ form.avatar }}
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">{{ form.phone.label }}</label>
+                                {{ form.phone }}
+                                <div class="form-text">{{ form.phone.help_text }}</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">{{ form.date_of_birth.label }}</label>
+                                {{ form.date_of_birth }}
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">{{ form.favorite_team.label }}</label>
+                                {{ form.favorite_team }}
+                            </div>
+                        </div>
+
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label class="form-label">{{ form.shirt_size.label }}</label>
+                                {{ form.shirt_size }}
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">{{ form.favorite_player.label }}</label>
+                                {{ form.favorite_player }}
+                            </div>
+                        </div>
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label">Адрес доставки</label>
+                        <label class="form-label">{{ form.address.label }}</label>
                         {{ form.address }}
-                        <div class="form-text">Введите адрес в поиске или кликните по карте</div>
                     </div>
 
-                    <div class="mb-4">
-                        <label class="form-label">Дата рождения</label>
-                        {{ form.date_of_birth }}
-                    </div>
-
-                    <!-- Поиск по адресу -->
+                    <!-- Поиск по карте -->
                     <div class="mb-3">
-                        <label class="form-label">Поиск места на карте</label>
-                        <div class="input-group search-container">
-                            <input type="text" id="search-input" class="form-control" placeholder="Введите город, улицу или адрес (например: Москва, Красная площадь)">
-                            <button type="button" id="search-btn" class="btn btn-outline-primary">🔍 Найти</button>
+                        <label class="form-label">🔍 Поиск места на карте</label>
+                        <div class="input-group">
+                            <input type="text" id="search-input" class="form-control" placeholder="Введите адрес или город">
+                            <button type="button" id="search-btn" class="btn btn-outline-primary">Найти</button>
                         </div>
                     </div>
 
                     <!-- Карта -->
                     <div class="mb-4">
-                        <label class="form-label">Карта (клик или поиск)</label>
+                        <label class="form-label">Точка доставки на карте</label>
                         <div id="map"></div>
                     </div>
 
-                    <!-- Скрытые поля координат -->
                     {{ form.latitude }}
                     {{ form.longitude }}
 
-                    <div class="d-grid gap-2">
+                    <div class="d-grid">
                         <button type="submit" class="btn btn-success btn-lg">💾 Сохранить изменения</button>
                     </div>
                 </form>
@@ -69,6 +106,26 @@
 {% block extra_js %}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
+    // === ПРЕДПРОСМОТР АВАТАРКИ ===
+    document.addEventListener('DOMContentLoaded', function() {
+        const avatarInput = document.getElementById('id_avatar');
+        const preview = document.getElementById('avatar-preview');
+
+        if (avatarInput && preview) {
+            avatarInput.addEventListener('change', function() {
+                const file = this.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        preview.src = e.target.result;
+                    };
+                    reader.readAsDataURL(file);
+                }
+            });
+        }
+    });
+
+    // === КАРТА И ПОИСК (оставляем) ===
     let map = L.map('map').setView([55.7558, 37.6173], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
@@ -78,23 +135,19 @@
     const latInput = document.getElementById('id_latitude');
     const lngInput = document.getElementById('id_longitude');
     const addressInput = document.getElementById('id_address');
-    const searchInput = document.getElementById('search-input');
-    const searchBtn = document.getElementById('search-btn');
 
-    // Загрузка существующих координат
+    // Загрузка текущих координат
     const savedLat = parseFloat(latInput.value);
     const savedLng = parseFloat(lngInput.value);
     if (savedLat && savedLng) {
-        marker = L.marker([savedLat, savedLng]).addTo(map)
-            .bindPopup('Текущий адрес доставки').openPopup();
+        marker = L.marker([savedLat, savedLng]).addTo(map).bindPopup('Текущий адрес').openPopup();
         map.setView([savedLat, savedLng], 15);
     }
 
-    // === КЛИК ПО КАРТЕ (reverse geocoding) ===
+    // Клик по карте + reverse geocoding
     map.on('click', function(e) {
         const lat = e.latlng.lat;
         const lng = e.latlng.lng;
-
         if (marker) marker.remove();
         marker = L.marker([lat, lng]).addTo(map);
 
@@ -106,57 +159,8 @@
             .then(data => {
                 if (data && data.display_name) {
                     addressInput.value = data.display_name;
-                    marker.bindPopup(`<strong>${data.display_name}</strong>`).openPopup();
                 }
-            })
-            .catch(() => {});
-    });
-
-    // === ПОИСК ПО АДРЕСУ (forward geocoding) ===
-    function performSearch() {
-        const query = searchInput.value.trim();
-        if (!query) return;
-
-        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&accept-language=ru`)
-            .then(r => r.json())
-            .then(data => {
-                if (data && data.length > 0) {
-                    const result = data[0];
-                    const lat = parseFloat(result.lat);
-                    const lng = parseFloat(result.lon);
-
-                    // Центрируем карту
-                    map.setView([lat, lng], 15);
-
-                    // Ставим/перемещаем маркер
-                    if (marker) marker.remove();
-                    marker = L.marker([lat, lng]).addTo(map)
-                        .bindPopup(`<strong>${result.display_name}</strong>`).openPopup();
-
-                    // Заполняем поля
-                    latInput.value = lat;
-                    lngInput.value = lng;
-                    addressInput.value = result.display_name;
-
-                } else {
-                    alert('Ничего не найдено. Попробуйте другой запрос.');
-                }
-            })
-            .catch(err => {
-                console.error(err);
-                alert('Ошибка поиска. Попробуйте позже.');
             });
-    }
-
-    // Клик по кнопке поиска
-    searchBtn.addEventListener('click', performSearch);
-
-    // Enter в поле поиска
-    searchInput.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            performSearch();
-        }
     });
 </script>
 {% endblock %}

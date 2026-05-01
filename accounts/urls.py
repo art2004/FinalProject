@@ -1,5 +1,6 @@
-from django.urls import path, reverse_lazy
+from django.urls import path
 from django.contrib.auth import views as auth_views
+from django.urls import reverse_lazy
 from . import views
 
 app_name = 'accounts'
@@ -13,8 +14,9 @@ urlpatterns = [
     # Профиль
     path('profile/', views.profile, name='profile'),
     path('profile/edit/', views.edit_profile, name='edit_profile'),
+    path('password_change/', views.change_password, name='change_password'),
 
-    # Сброс пароля (с исправлением success_url)
+    # Сброс пароля
     path('password_reset/',
          auth_views.PasswordResetView.as_view(
              template_name='accounts/password_reset.html',

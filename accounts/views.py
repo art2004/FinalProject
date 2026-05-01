@@ -6,7 +6,8 @@ from .forms import RegistrationForm, ProfileForm
 from .models import Profile
 from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import Group
-
+from django.contrib.auth.forms import PasswordChangeForm
+from django.contrib.auth import update_session_auth_hash
 
 def register(request):
     if request.method == 'POST':
@@ -35,7 +36,7 @@ def user_login(request):
             user = form.get_user()
             login(request, user)
             messages.success(request, f'Добро пожаловать, {user.username}!')
-            return redirect('shop:index')
+            return redirect('accounts:login')
         else:
             messages.error(request, 'Неверное имя пользователя или пароль')
     else:
@@ -47,8 +48,7 @@ def user_login(request):
 def user_logout(request):
     logout(request)
     messages.success(request, 'Вы успешно вышли из аккаунта')
-    return redirect('shop:index')
-
+    return redirect('accounts:login')   # ← изменили на существующую страницу
 
 @login_required
 def profile(request):
@@ -77,8 +77,9 @@ def profile(request):
 @login_required
 def edit_profile(request):
     profile = request.user.profile
+
     if request.method == 'POST':
-        form = ProfileForm(request.POST, instance=profile)
+        form = ProfileForm(request.POST, request.FILES, instance=profile)
         if form.is_valid():
             form.save()
             messages.success(request, 'Профиль успешно обновлён!')
@@ -86,4 +87,21 @@ def edit_profile(request):
     else:
         form = ProfileForm(instance=profile)
 
-    return render(request, 'accounts/edit_profile.html', {'form': form})
+    return render(request, 'accounts/edit_profile.html', {
+        'form': form,
+        'profile': profile
+    })
+
+@login_required
+def change_password(request):
+    if request.method == 'POST':
+        form = PasswordChangeForm(request.user, request.POST)
+        if form.is_valid():
+            user = form.save()
+            update_session_auth_hash(request, user)  # чтобы не разлогинивало
+            messages.success(request, 'Пароль успешно изменён!')
+            return redirect('accounts:profile')
+    else:
+        form = PasswordChangeForm(request.user)
+
+    return render(request, 'accounts/change_password.html', {'form': form})

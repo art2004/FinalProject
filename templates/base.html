@@ -35,6 +35,7 @@
                                 {% if user.is_staff %}
                                     <li><a class="dropdown-item" href="{% url 'admin:index' %}">Админ-панель</a></li>
                                 {% endif %}
+                                <li><a class="dropdown-item" href="{% url 'accounts:change_password' %}">🔑 Сменить пароль</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item text-danger" href="{% url 'accounts:logout' %}">Выйти</a></li>
                             </ul>

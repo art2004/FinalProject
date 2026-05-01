@@ -9,16 +9,29 @@
                 <h4>👤 Профиль — {{ user.username }}</h4>
             </div>
             <div class="card-body">
+                <!-- Аватарка -->
+                <div class="text-center mb-4">
+                    {% if profile.avatar %}
+                        <img src="{{ profile.avatar.url }}" alt="Аватар" class="rounded-circle" width="120" height="120">
+                    {% else %}
+                        <div class="rounded-circle bg-light d-inline-flex align-items-center justify-content-center" style="width: 120px; height: 120px;">
+                            <span class="text-muted fs-1">👤</span>
+                        </div>
+                    {% endif %}
+                </div>
                 <p><strong>Email:</strong> {{ user.email|default:"—" }}</p>
                 <p><strong>Телефон:</strong> {{ profile.phone|default:"—" }}</p>
                 <p><strong>Дата рождения:</strong> {{ profile.date_of_birth|date:"d.m.Y"|default:"—" }}</p>
+                <p><strong>Любимая команда:</strong> {{ profile.favorite_team|default:"—" }}</p>
+                <p><strong>Размер формы:</strong> {{ profile.shirt_size|default:"—" }}</p>
+                <p><strong>Любимый игрок:</strong> {{ profile.favorite_player|default:"—" }}</p>
                 <p><strong>Адрес доставки:</strong> {{ profile.address|default:"—" }}</p>
-
                 <p><strong>Роль:</strong>
                     <span class="badge {{ role_class }}">{{ role }}</span>
                 </p>
 
                 <a href="{% url 'accounts:edit_profile' %}" class="btn btn-primary">✏️ Редактировать профиль</a>
+                <a href="{% url 'accounts:change_password' %}" class="btn btn-info">🔑 Сменить пароль</a>
             </div>
         </div>
     </div>
