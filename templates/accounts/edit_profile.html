@@ -12,6 +12,7 @@
         border-radius: 50%;
         border: 5px solid #0d6efd;
     }
+    .form-error { color: #dc3545; font-size: 0.875rem; margin-top: 4px; }
 </style>
 {% endblock %}
 
@@ -27,15 +28,16 @@
                 <form method="post" enctype="multipart/form-data" id="profile-form">
                     {% csrf_token %}
 
-                    <!-- Аватарка с предпросмотром -->
+                    <!-- Аватарка -->
                     <div class="mb-4 text-center">
                         <label class="form-label fw-bold">Аватарка</label><br>
-
-                        <img id="avatar-preview"
-                             src="{% if profile.avatar %}{{ profile.avatar.url }}{% else %}https://via.placeholder.com/160x160?text=Аватар{% endif %}"
-                             alt="Предпросмотр"
-                             class="avatar-preview mb-3">
-
+                        {% if profile.avatar %}
+                            <img src="{{ profile.avatar.url }}" alt="Аватар" class="avatar-preview mb-3">
+                        {% else %}
+                            <div class="avatar-preview bg-light d-flex align-items-center justify-content-center mx-auto mb-3">
+                                <span class="display-1 text-muted">👤</span>
+                            </div>
+                        {% endif %}
                         {{ form.avatar }}
                     </div>
 
@@ -45,16 +47,26 @@
                                 <label class="form-label">{{ form.phone.label }}</label>
                                 {{ form.phone }}
                                 <div class="form-text">{{ form.phone.help_text }}</div>
+                                {% if form.phone.errors %}<div class="form-error">{{ form.phone.errors }}</div>{% endif %}
                             </div>
 
+                            <!-- Дата рождения — ЯВНОЕ ЗНАЧЕНИЕ -->
                             <div class="mb-3">
                                 <label class="form-label">{{ form.date_of_birth.label }}</label>
-                                {{ form.date_of_birth }}
+                                <input type="date"
+                                       name="date_of_birth"
+                                       id="id_date_of_birth"
+                                       class="form-control"
+                                       value="{% if profile.date_of_birth %}{{ profile.date_of_birth|date:'Y-m-d' }}{% endif %}">
+                                {% if form.date_of_birth.errors %}
+                                    <div class="form-error">{{ form.date_of_birth.errors }}</div>
+                                {% endif %}
                             </div>
 
                             <div class="mb-3">
                                 <label class="form-label">{{ form.favorite_team.label }}</label>
                                 {{ form.favorite_team }}
+                                {% if form.favorite_team.errors %}<div class="form-error">{{ form.favorite_team.errors }}</div>{% endif %}
                             </div>
                         </div>
 
@@ -62,10 +74,12 @@
                             <div class="mb-3">
                                 <label class="form-label">{{ form.shirt_size.label }}</label>
                                 {{ form.shirt_size }}
+                                {% if form.shirt_size.errors %}<div class="form-error">{{ form.shirt_size.errors }}</div>{% endif %}
                             </div>
                             <div class="mb-3">
                                 <label class="form-label">{{ form.favorite_player.label }}</label>
                                 {{ form.favorite_player }}
+                                {% if form.favorite_player.errors %}<div class="form-error">{{ form.favorite_player.errors }}</div>{% endif %}
                             </div>
                         </div>
                     </div>
@@ -73,13 +87,14 @@
                     <div class="mb-4">
                         <label class="form-label">{{ form.address.label }}</label>
                         {{ form.address }}
+                        {% if form.address.errors %}<div class="form-error">{{ form.address.errors }}</div>{% endif %}
                     </div>
 
                     <!-- Поиск по карте -->
                     <div class="mb-3">
                         <label class="form-label">🔍 Поиск места на карте</label>
                         <div class="input-group">
-                            <input type="text" id="search-input" class="form-control" placeholder="Введите адрес или город">
+                            <input type="text" id="search-input" class="form-control" placeholder="Москва, Красная площадь или любой адрес">
                             <button type="button" id="search-btn" class="btn btn-outline-primary">Найти</button>
                         </div>
                     </div>
@@ -106,11 +121,10 @@
 {% block extra_js %}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script>
-    // === ПРЕДПРОСМОТР АВАТАРКИ ===
+    // Предпросмотр аватарки
     document.addEventListener('DOMContentLoaded', function() {
         const avatarInput = document.getElementById('id_avatar');
-        const preview = document.getElementById('avatar-preview');
-
+        const preview = document.querySelector('.avatar-preview');
         if (avatarInput && preview) {
             avatarInput.addEventListener('change', function() {
                 const file = this.files[0];
@@ -125,7 +139,7 @@
         }
     });
 
-    // === КАРТА И ПОИСК (оставляем) ===
+    // Карта + поиск
     let map = L.map('map').setView([55.7558, 37.6173], 12);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
         attribution: '&copy; OpenStreetMap contributors'
@@ -135,8 +149,9 @@
     const latInput = document.getElementById('id_latitude');
     const lngInput = document.getElementById('id_longitude');
     const addressInput = document.getElementById('id_address');
+    const searchInput = document.getElementById('search-input');
+    const searchBtn = document.getElementById('search-btn');
 
-    // Загрузка текущих координат
     const savedLat = parseFloat(latInput.value);
     const savedLng = parseFloat(lngInput.value);
     if (savedLat && savedLng) {
@@ -144,7 +159,6 @@
         map.setView([savedLat, savedLng], 15);
     }
 
-    // Клик по карте + reverse geocoding
     map.on('click', function(e) {
         const lat = e.latlng.lat;
         const lng = e.latlng.lng;
@@ -157,10 +171,30 @@
         fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1&accept-language=ru`)
             .then(r => r.json())
             .then(data => {
-                if (data && data.display_name) {
-                    addressInput.value = data.display_name;
-                }
+                if (data && data.display_name) addressInput.value = data.display_name;
             });
     });
+
+    function performSearch() {
+        const query = searchInput.value.trim();
+        if (!query) return;
+        fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=1&accept-language=ru`)
+            .then(r => r.json())
+            .then(data => {
+                if (data && data.length > 0) {
+                    const lat = parseFloat(data[0].lat);
+                    const lng = parseFloat(data[0].lon);
+                    map.setView([lat, lng], 15);
+                    if (marker) marker.remove();
+                    marker = L.marker([lat, lng]).addTo(map).bindPopup(data[0].display_name).openPopup();
+                    latInput.value = lat;
+                    lngInput.value = lng;
+                    addressInput.value = data[0].display_name;
+                }
+            });
+    }
+
+    searchBtn.addEventListener('click', performSearch);
+    searchInput.addEventListener('keypress', e => { if (e.key === 'Enter') performSearch(); });
 </script>
 {% endblock %}
