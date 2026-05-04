@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block title %}Корзина — Football Shop{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">🛒 Ваша корзина</h2>
+
+    {% if cart_items %}
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Товар</th>
+                        <th class="text-end">Цена</th>
+                        <th class="text-center">Количество</th>
+                        <th class="text-end">Сумма</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for pid, item in cart_items.items %}
+                    <tr>
+                        <td>{{ item.name }}</td>
+                        <td class="text-end">{{ item.price }} ₽</td>
+
+                        <!-- Изменение количества -->
+                        <td class="text-center">
+                            <form method="post" action="{% url 'shop:cart_update' pid %}" class="d-inline-flex align-items-center">
+                                {% csrf_token %}
+                                <input type="number"
+                                       name="quantity"
+                                       value="{{ item.quantity }}"
+                                       min="1"
+                                       class="form-control form-control-sm text-center"
+                                       style="width: 80px;">
+                                <button type="submit" class="btn btn-sm btn-outline-primary ms-2">✓</button>
+                            </form>
+                        </td>
+
+                        <td class="text-end">{{ item.subtotal|floatformat:2 }} ₽</td>
+                        <td>
+                            <a href="{% url 'shop:cart_remove' pid %}"
+                               class="btn btn-sm btn-danger">Удалить</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Итог -->
+        <div class="text-end mt-4">
+            <h4>Итого: <strong>{{ total|floatformat:2 }} ₽</strong></h4>
+            <a href="#" class="btn btn-success btn-lg mt-3">Оформить заказ</a>
+        </div>
+
+    {% else %}
+        <div class="text-center py-5">
+            <h4 class="text-muted">Ваша корзина пуста</h4>
+            <a href="{% url 'shop:index' %}" class="btn btn-primary mt-3">Перейти в магазин</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

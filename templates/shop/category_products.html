@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block title %}{{ category.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">{{ category.name }}</h2>
+    <p class="text-muted">{{ category.description }}</p>
+
+    <div class="row">
+        {% for product in products %}
+        <div class="col-md-6 col-lg-4 col-xl-3 mb-4">
+            <div class="card h-100 shadow-sm">
+                {% if product.image %}
+                    <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}" style="height: 200px; object-fit: cover;">
+                {% else %}
+                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
+                        <span class="text-muted">Нет фото</span>
+                    </div>
+                {% endif %}
+                <div class="card-body d-flex flex-column">
+                    <h6 class="card-title">{{ product.name }}</h6>
+                    <p class="text-muted small">{{ product.category }}</p>
+                    <p class="card-text flex-grow-1">{{ product.description|truncatewords:15 }}</p>
+                    
+                    <div class="mt-auto">
+                        <h5 class="text-success">{{ product.price }} ₽</h5>
+                        <a href="{% url 'shop:product_detail' product.slug %}" class="btn btn-primary w-100">Подробнее</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% empty %}
+        <p class="text-muted">В этой категории пока нет товаров.</p>
+        {% endfor %}
+    </div>
+
+    <a href="{% url 'shop:index' %}" class="btn btn-secondary mt-4">← Все категории</a>
+</div>
+{% endblock %}

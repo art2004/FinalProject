@@ -9,20 +9,21 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth import update_session_auth_hash
 
+
 def register(request):
     if request.method == 'POST':
         form = RegistrationForm(request.POST)
         if form.is_valid():
             user = form.save()
-            Profile.objects.create(user=user)
+            Profile.objects.get_or_create(user=user)
 
-            # Добавляем пользователя в группу Customer
+            from django.contrib.auth.models import Group
             customer_group = Group.objects.get(name='Customer')
             user.groups.add(customer_group)
 
             login(request, user)
-            messages.success(request, 'Регистрация прошла успешно! Добро пожаловать!')
-            return redirect('accounts:profile')
+            messages.success(request, 'Регистрация прошла успешно! Добро пожаловать в магазин!')
+            return redirect('shop:index')
     else:
         form = RegistrationForm()
     return render(request, 'accounts/register.html', {'form': form})
@@ -36,12 +37,11 @@ def user_login(request):
             user = form.get_user()
             login(request, user)
             messages.success(request, f'Добро пожаловать, {user.username}!')
-            return redirect('accounts:login')
+            return redirect('shop:index')
         else:
             messages.error(request, 'Неверное имя пользователя или пароль')
     else:
         form = AuthenticationForm()
-
     return render(request, 'accounts/login.html', {'form': form})
 
 @login_required

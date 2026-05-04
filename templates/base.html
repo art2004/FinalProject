@@ -14,7 +14,8 @@
 
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <a class="navbar-brand fw-bold" href="{% url 'accounts:login' %}">
+            <!-- Логотип = переход в магазин -->
+            <a class="navbar-brand fw-bold" href="{% url 'shop:index' %}">
                 ⚽ Football Shop
             </a>
 
@@ -25,17 +26,31 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav ms-auto align-items-center">
                     {% if user.is_authenticated %}
+                        <!-- Корзина -->
+                        <li class="nav-item me-3">
+                            <a class="nav-link position-relative" href="{% url 'shop:cart' %}">
+                                🛒 Корзина
+                                {% if request.session.cart %}
+                                    <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-warning text-dark">
+                                        {{ request.session.cart|length }}
+                                    </span>
+                                {% endif %}
+                            </a>
+                        </li>
+
+                        <!-- Профиль -->
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                                 👤 {{ user.username }}
                             </a>
                             <ul class="dropdown-menu dropdown-menu-end">
+                                <li><a class="dropdown-item" href="{% url 'shop:cart' %}">🛒 Корзина</a></li>
                                 <li><a class="dropdown-item" href="{% url 'accounts:profile' %}">Мой профиль</a></li>
                                 <li><a class="dropdown-item" href="{% url 'accounts:edit_profile' %}">Редактировать профиль</a></li>
+                                <li><a class="dropdown-item" href="{% url 'accounts:change_password' %}">🔑 Сменить пароль</a></li>
                                 {% if user.is_staff %}
                                     <li><a class="dropdown-item" href="{% url 'admin:index' %}">Админ-панель</a></li>
                                 {% endif %}
-                                <li><a class="dropdown-item" href="{% url 'accounts:change_password' %}">🔑 Сменить пароль</a></li>
                                 <li><hr class="dropdown-divider"></li>
                                 <li><a class="dropdown-item text-danger" href="{% url 'accounts:logout' %}">Выйти</a></li>
                             </ul>
@@ -63,7 +78,8 @@
             {% endfor %}
         {% endif %}
 
-        {% block content %}{% endblock %}
+        {% block content %}
+        {% endblock %}
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>

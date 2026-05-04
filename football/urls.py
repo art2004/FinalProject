@@ -7,9 +7,7 @@ from django.shortcuts import redirect
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('accounts/', include('accounts.urls')),
-    
-    # Главная страница → редирект на логин (пока shop не трогаем)
-    path('', lambda request: redirect('accounts:login'), name='home'),
+    path('', include('shop.urls')),           # ← теперь главная = магазин
 ]
 
 # Обслуживание медиа-файлов (аватарки и т.д.)

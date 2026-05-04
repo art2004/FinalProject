@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% block title %}{{ product.name }}{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="row">
+        <!-- Левая колонка - фото -->
+        <div class="col-lg-6 mb-5">
+            {% if product.image %}
+                <img src="{{ product.image.url }}"
+                     class="img-fluid rounded shadow"
+                     alt="{{ product.name }}">
+            {% else %}
+                <div class="bg-light rounded d-flex align-items-center justify-content-center"
+                     style="height: 500px;">
+                    <span class="text-muted fs-1">Нет фото</span>
+                </div>
+            {% endif %}
+        </div>
+
+        <!-- Правая колонка - информация -->
+        <div class="col-lg-6">
+            <h2 class="mb-3">{{ product.name }}</h2>
+            <p class="text-muted fs-5">{{ product.category }}</p>
+
+            <h3 class="text-success mb-4">{{ product.price }} ₽</h3>
+
+            <div class="mb-4">
+                <strong>Наличие:</strong>
+                {% if product.stock > 0 %}
+                    <span class="badge bg-success">{{ product.stock }} шт.</span>
+                {% else %}
+                    <span class="badge bg-danger">Нет в наличии</span>
+                {% endif %}
+            </div>
+
+            <div class="mb-5">
+                <h5>Описание товара</h5>
+                <p class="lead">{{ product.description }}</p>
+            </div>
+
+            <!-- Форма добавления в корзину -->
+            <form method="post" action="{% url 'shop:cart_add' product.id %}">
+                {% csrf_token %}
+                <div class="row align-items-end mb-4">
+                    <div class="col-6">
+                        <label class="form-label">Количество</label>
+                        <input type="number"
+                               name="quantity"
+                               value="1"
+                               min="1"
+                               max="{{ product.stock }}"
+                               class="form-control">
+                    </div>
+                    <div class="col-6">
+                        <button type="submit" class="btn btn-primary btn-lg w-100">
+                            🛒 В корзину
+                        </button>
+                    </div>
+                </div>
+            </form>
+
+            <a href="{% url 'shop:index' %}" class="btn btn-secondary">
+                ← Назад в магазин
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
