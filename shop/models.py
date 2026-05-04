@@ -36,6 +36,19 @@ class Tag(models.Model):
 
 class Product(models.Model):
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
+    GENDER_CHOICES = [
+        ('male', 'Мужское'),
+        ('female', 'Женское'),
+        ('kids', 'Детское'),
+        ('unisex', 'Унисекс / Инвентарь'),
+    ]
+
+    gender = models.CharField(
+        max_length=10,
+        choices=GENDER_CHOICES,
+        default='unisex',
+        verbose_name="Пол / Категория"
+    )
     tags = models.ManyToManyField(Tag, blank=True, related_name='products')
 
     name = models.CharField(max_length=200, verbose_name="Название")

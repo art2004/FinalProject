@@ -1,58 +1,88 @@
 {% extends 'base.html' %}
-{% block title %}Магазин футбольной атрибутики{% endblock %}
+{% block title %}Football Shop — Магазин футбольной атрибутики{% endblock %}
 
 {% block content %}
 <div class="container">
-    <div class="row mb-5">
-        <div class="col-12 text-center">
-            <h1 class="display-4 fw-bold">⚽ Football Shop</h1>
-            <p class="lead text-muted">Лучшая футбольная атрибутика для настоящих фанатов</p>
-        </div>
-    </div>
-
-    <!-- Категории -->
-    <h3 class="mb-4">Категории товаров</h3>
-    <div class="row mb-5">
-        {% for category in categories %}
-        <div class="col-md-4 col-lg-3 mb-4">
-            <a href="{% url 'shop:category_products' category.slug %}" class="text-decoration-none">
-                <div class="card h-100 shadow-sm hover-card">
-                    <div class="card-body text-center">
-                        <h5 class="card-title">{{ category.name }}</h5>
-                        <p class="card-text text-muted small">{{ category.description|truncatewords:15 }}</p>
-                    </div>
-                </div>
-            </a>
-        </div>
-        {% endfor %}
-    </div>
-
-    <!-- Популярные товары -->
-    <h3 class="mb-4">Популярные товары</h3>
     <div class="row">
-        {% for product in products %}
-        <div class="col-md-6 col-lg-4 col-xl-3 mb-4">
-            <div class="card h-100 shadow-sm">
-                {% if product.image %}
-                    <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}" style="height: 200px; object-fit: cover;">
-                {% else %}
-                    <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 200px;">
-                        <span class="text-muted">Нет фото</span>
-                    </div>
-                {% endif %}
-                <div class="card-body d-flex flex-column">
-                    <h6 class="card-title">{{ product.name }}</h6>
-                    <p class="text-muted small">{{ product.category }}</p>
-                    <p class="card-text flex-grow-1">{{ product.description|truncatewords:20 }}</p>
 
-                    <div class="mt-auto">
-                        <h5 class="text-success">{{ product.price }} ₽</h5>
-                        <a href="{% url 'shop:product_detail' product.slug %}" class="btn btn-primary w-100">Подробнее</a>
-                    </div>
+        <!-- Левый сайдбар -->
+        <div class="col-lg-3">
+            <div class="sticky-top" style="top: 20px;">
+                <h5 class="mb-3">Категории</h5>
+                <div class="list-group mb-4">
+                    <a href="{% url 'shop:index' %}" class="list-group-item list-group-item-action active">🌐 Все товары</a>
+                    <a href="{% url 'shop:category_products' 'male' %}" class="list-group-item list-group-item-action">👟 Мужское</a>
+                    <a href="{% url 'shop:category_products' 'female' %}" class="list-group-item list-group-item-action">👠 Женское</a>
+                    <a href="{% url 'shop:category_products' 'kids' %}" class="list-group-item list-group-item-action">🧒 Детское</a>
+                    <a href="{% url 'shop:category_products' 'unisex' %}" class="list-group-item list-group-item-action">🏆 Инвентарь и аксессуары</a>
                 </div>
+
+                <h5 class="mb-3">Фильтры</h5>
+                <form method="get">
+                    <div class="mb-3">
+                        <label class="form-label">Цена от</label>
+                        <input type="number" name="min_price" value="{{ min_price|default:'' }}" class="form-control" placeholder="0">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Цена до</label>
+                        <input type="number" name="max_price" value="{{ max_price|default:'' }}" class="form-control" placeholder="999999">
+                    </div>
+
+                    <h5 class="mb-3">Сортировка</h5>
+                    <select name="sort" class="form-select" onchange="this.form.submit()">
+                        <option value="">По умолчанию</option>
+                        <option value="price_asc" {% if sort == 'price_asc' %}selected{% endif %}>Сначала дешевле</option>
+                        <option value="price_desc" {% if sort == 'price_desc' %}selected{% endif %}>Сначала дороже</option>
+                        <option value="name" {% if sort == 'name' %}selected{% endif %}>По названию</option>
+                    </select>
+
+                    <button type="submit" class="btn btn-primary w-100 mt-4">Применить</button>
+                </form>
             </div>
         </div>
-        {% endfor %}
+
+        <!-- Основной контент -->
+        <div class="col-lg-9">
+            <h2 class="mb-4">Популярные товары</h2>
+            <div class="row g-4">
+                {% for product in products %}
+                <div class="col-6 col-md-4 col-lg-4">
+                    <div class="card h-100 border-0 shadow-sm hover-card {% if product.stock == 0 %}opacity-75 bg-light{% endif %}">
+                        {% if product.image %}
+                            <img src="{{ product.image.url }}" class="card-img-top" alt="{{ product.name }}" style="height: 240px; object-fit: cover;">
+                        {% else %}
+                            <div class="card-img-top bg-light d-flex align-items-center justify-content-center" style="height: 240px;">
+                                <span class="text-muted fs-1">⚽</span>
+                            </div>
+                        {% endif %}
+
+                        <div class="card-body d-flex flex-column">
+                            <!-- Красивые теги -->
+                            <div class="mb-2">
+                                <span class="badge bg-secondary me-1">{{ product.get_gender_display }}</span>
+                                {% if product.stock == 0 %}
+                                    <span class="badge bg-danger">Нет в наличии</span>
+                                {% endif %}
+                            </div>
+                            <h6 class="card-title mb-1">{{ product.name }}</h6>
+                            <p class="text-muted small mb-3">{{ product.category }}</p>
+                            <div class="mt-auto">
+                                <h5 class="text-success mb-2">{{ product.price }} ₽</h5>
+                                <a href="{% url 'shop:product_detail' product.slug %}" class="btn btn-primary w-100">Подробнее</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
     </div>
 </div>
+
+<style>
+.hover-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.15) !important;
+}
+</style>
 {% endblock %}

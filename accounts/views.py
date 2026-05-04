@@ -8,6 +8,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import Group
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth import update_session_auth_hash
+from shop.models import Product
 
 
 def register(request):
@@ -46,9 +47,25 @@ def user_login(request):
 
 @login_required
 def user_logout(request):
+    """Выход из аккаунта + возврат товаров из корзины на склад"""
+    cart = request.session.get('cart', {})
+
+    if cart:
+        for pid_str, item in cart.items():
+            try:
+                product = Product.objects.get(id=int(pid_str))
+                product.stock += item['quantity']
+                product.save()
+            except Product.DoesNotExist:
+                pass
+
+        # Очищаем корзину
+        request.session['cart'] = {}
+        request.session.modified = True
+
     logout(request)
-    messages.success(request, 'Вы успешно вышли из аккаунта')
-    return redirect('accounts:login')   # ← изменили на существующую страницу
+    messages.success(request, 'Вы успешно вышли из аккаунта. Товары из корзины возвращены на склад.')
+    return redirect('shop:index')
 
 @login_required
 def profile(request):

@@ -3,12 +3,37 @@ from .models import Product, Category
 from django.contrib import messages
 
 def index(request):
-    """Главная страница магазина"""
-    products = Product.objects.filter(is_available=True)[:12]
-    categories = Category.objects.all()
+    """Главная страница"""
+    products = Product.objects.filter(is_available=True)
+
+    # === ФИЛЬТР "ТОЛЬКО В НАЛИЧИИ" ===
+    only_in_stock = request.GET.get('in_stock') == '1'
+    if only_in_stock:
+        products = products.filter(stock__gt=0)
+
+    # Фильтр по цене
+    min_price = request.GET.get('min_price')
+    max_price = request.GET.get('max_price')
+    if min_price:
+        products = products.filter(price__gte=min_price)
+    if max_price:
+        products = products.filter(price__lte=max_price)
+
+    # Сортировка
+    sort = request.GET.get('sort')
+    if sort == 'price_asc':
+        products = products.order_by('price')
+    elif sort == 'price_desc':
+        products = products.order_by('-price')
+    elif sort == 'name':
+        products = products.order_by('name')
+
     return render(request, 'shop/index.html', {
         'products': products,
-        'categories': categories
+        'min_price': min_price,
+        'max_price': max_price,
+        'sort': sort,
+        'only_in_stock': only_in_stock,
     })
 
 
@@ -19,18 +44,80 @@ def product_detail(request, slug):
 
 
 def category_products(request, slug):
-    """Товары по категории"""
-    category = get_object_or_404(Category, slug=slug)
-    products = Product.objects.filter(category=category, is_available=True)
+    """Страница категории"""
+    gender_map = {
+        'male': 'Мужское',
+        'female': 'Женское',
+        'kids': 'Детское',
+        'unisex': 'Унисекс / Инвентарь'
+    }
+
+    products = Product.objects.filter(is_available=True, gender=slug)
+
+    # === ФИЛЬТР "ТОЛЬКО В НАЛИЧИИ" ===
+    only_in_stock = request.GET.get('in_stock') == '1'
+    if only_in_stock:
+        products = products.filter(stock__gt=0)
+
+    # Фильтр по цене
+    min_price = request.GET.get('min_price')
+    max_price = request.GET.get('max_price')
+    if min_price:
+        products = products.filter(price__gte=min_price)
+    if max_price:
+        products = products.filter(price__lte=max_price)
+
+    # Сортировка
+    sort = request.GET.get('sort')
+    if sort == 'price_asc':
+        products = products.order_by('price')
+    elif sort == 'price_desc':
+        products = products.order_by('-price')
+    elif sort == 'name':
+        products = products.order_by('name')
+
     return render(request, 'shop/category_products.html', {
-        'category': category,
-        'products': products
+        'products': products,
+        'category_name': gender_map.get(slug, 'Категория'),
+        'gender_slug': slug,
+        'min_price': min_price,
+        'max_price': max_price,
+        'sort': sort,
+        'only_in_stock': only_in_stock,
+    })
+
+
+def search(request):
+    """Простой и надёжный поиск (работает с русскими буквами в любом регистре)"""
+    query = request.GET.get('q', '').strip().lower()  # приводим запрос к нижнему регистру
+
+    # Берём все доступные товары
+    products = Product.objects.filter(is_available=True)
+
+    if query:
+        # Фильтруем на стороне Python — 100% работает с кириллицей
+        filtered = []
+        for product in products:
+            name_lower = product.name.lower()
+            desc_lower = product.description.lower() if product.description else ""
+            if query in name_lower or query in desc_lower:
+                filtered.append(product)
+
+        products = filtered
+
+    return render(request, 'shop/search_results.html', {
+        'products': products,
+        'query': request.GET.get('q', '').strip()  # оригинальный запрос для отображения
     })
 
 # ====================== КОРЗИНА ======================
 
 def cart_add(request, product_id):
-    """Добавить товар в корзину и остаться на странице товара"""
+    """Добавить товар в корзину (только для авторизованных)"""
+    if not request.user.is_authenticated:
+        messages.warning(request, 'Сначала авторизируйтесь или зарегистрируйтесь, чтобы добавить товар в корзину')
+        return redirect('accounts:login')
+
     product = get_object_or_404(Product, id=product_id)
     quantity = int(request.POST.get('quantity', 1))
 
@@ -38,11 +125,12 @@ def cart_add(request, product_id):
         messages.error(request, f'На складе только {product.stock} шт.')
         return redirect('shop:product_detail', slug=product.slug)
 
+    # Уменьшаем остаток
     product.stock -= quantity
     product.save()
 
+    # Добавляем в корзину
     cart = request.session.get('cart', {})
-
     if str(product_id) in cart:
         cart[str(product_id)]['quantity'] += quantity
     else:
@@ -57,7 +145,7 @@ def cart_add(request, product_id):
     request.session.modified = True
 
     messages.success(request, f'{product.name} добавлен в корзину')
-    return redirect('shop:product_detail', slug=product.slug)   # ← остаёмся на товаре
+    return redirect('shop:product_detail', slug=product.slug)
 
 
 def cart_update(request, product_id):

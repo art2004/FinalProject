@@ -14,7 +14,6 @@
 
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <!-- Логотип = переход в магазин -->
             <a class="navbar-brand fw-bold" href="{% url 'shop:index' %}">
                 ⚽ Football Shop
             </a>
@@ -24,9 +23,14 @@
             </button>
 
             <div class="collapse navbar-collapse" id="navbarNav">
+                <!-- Поиск -->
+                <form class="d-flex mx-auto" style="max-width: 420px;" method="get" action="{% url 'shop:search' %}">
+                    <input type="text" name="q" class="form-control" placeholder="Поиск товаров..." value="{{ request.GET.q }}">
+                    <button type="submit" class="btn btn-light ms-2">🔍</button>
+                </form>
+
                 <ul class="navbar-nav ms-auto align-items-center">
                     {% if user.is_authenticated %}
-                        <!-- Корзина -->
                         <li class="nav-item me-3">
                             <a class="nav-link position-relative" href="{% url 'shop:cart' %}">
                                 🛒 Корзина
@@ -38,7 +42,6 @@
                             </a>
                         </li>
 
-                        <!-- Профиль -->
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown">
                                 👤 {{ user.username }}
