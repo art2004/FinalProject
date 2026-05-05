@@ -9,25 +9,61 @@ from django.contrib.auth.models import Group
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth import update_session_auth_hash
 from shop.models import Order, OrderItem, Product
+from django.utils.http import urlsafe_base64_decode
+from django.contrib.auth.models import User
+from django.contrib.auth.tokens import default_token_generator
+from django.utils.http import urlsafe_base64_encode
+from django.utils.encoding import force_bytes
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
 
 def register(request):
     if request.method == 'POST':
         form = RegistrationForm(request.POST)
         if form.is_valid():
-            user = form.save()
+            user = form.save(commit=False)
+            user.is_active = False  # аккаунт неактивен до подтверждения
+            user.save()
+
             Profile.objects.get_or_create(user=user)
 
+            # Добавляем в группу Customer
             from django.contrib.auth.models import Group
             customer_group = Group.objects.get(name='Customer')
             user.groups.add(customer_group)
 
-            login(request, user)
-            messages.success(request, 'Регистрация прошла успешно! Добро пожаловать в магазин!')
-            return redirect('shop:index')
+            # Генерируем токен для подтверждения
+            token = default_token_generator.make_token(user)
+            uid = urlsafe_base64_encode(force_bytes(user.pk))
+
+            # Ссылка для активации
+            activation_link = request.build_absolute_uri(
+                f"/accounts/activate/{uid}/{token}/"
+            )
+
+            # Отправляем письмо
+            subject = 'Подтверждение регистрации — Football Shop'
+            message = render_to_string('accounts/email_activation.html', {
+                'user': user,
+                'activation_link': activation_link,
+            })
+
+            send_mail(
+                subject=subject,
+                message='',
+                from_email=None,
+                recipient_list=[user.email],
+                html_message=message,
+                fail_silently=False,
+            )
+
+            messages.success(request, 'Регистрация прошла успешно! Проверьте почту и подтвердите email.')
+            return redirect('accounts:login')
+
     else:
         form = RegistrationForm()
-    return render(request, 'accounts/register.html', {'form': form})
 
+    return render(request, 'accounts/register.html', {'form': form})
 
 
 def user_login(request):
@@ -116,3 +152,21 @@ def change_password(request):
         form = PasswordChangeForm(request.user)
 
     return render(request, 'accounts/change_password.html', {'form': form})
+
+
+def activate_account(request, uidb64, token):
+    """Активация аккаунта по ссылке из письма"""
+    try:
+        uid = urlsafe_base64_decode(uidb64).decode()
+        user = User.objects.get(pk=uid)
+    except (TypeError, ValueError, OverflowError, User.DoesNotExist):
+        user = None
+
+    if user is not None and default_token_generator.check_token(user, token):
+        user.is_active = True
+        user.save()
+        messages.success(request, 'Email успешно подтверждён! Теперь вы можете войти.')
+        return redirect('accounts:login')
+    else:
+        messages.error(request, 'Ссылка для активации недействительна или устарела.')
+        return redirect('accounts:register')

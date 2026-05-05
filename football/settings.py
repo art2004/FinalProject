@@ -135,11 +135,16 @@ LOGOUT_REDIRECT_URL = 'shop:index'
 LOGIN_URL = 'accounts:login'
 
 
+import os
+from dotenv import load_dotenv
+
+load_dotenv()   # ← добавь эту строку в начало файла (после импортов)
+
 # ================== EMAIL SETTINGS (Yandex) ==================
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = 'smtp.yandex.ru'
 EMAIL_PORT = 465
 EMAIL_USE_SSL = True
-EMAIL_HOST_USER = 'fo0tball.shop@yandex.ru'           # ← твой полный Yandex email
-EMAIL_HOST_PASSWORD = 'ngycshgwckpgwdge'     # ← пароль приложения, который ты только что скопировал
-DEFAULT_FROM_EMAIL = 'Football Shop <fo0tball.shop@yandex.ru>'
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = f'Football Shop <{EMAIL_HOST_USER}>'

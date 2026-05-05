@@ -2,6 +2,10 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from .models import Order, OrderItem, Product
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+from django.core.mail import send_mail
+
 def index(request):
     """Главная страница"""
     products = Product.objects.filter(is_available=True)
@@ -371,3 +375,34 @@ def cancel_order(request, order_id):
 
     messages.success(request, f'Заказ #{order.id} успешно отменён. Товары возвращены на склад.')
     return redirect('accounts:profile')
+
+
+@receiver(post_save, sender=Order)
+def send_status_notification(sender, instance, created, **kwargs):
+    """Отправляем письмо пользователю при изменении статуса заказа"""
+    if created:
+        return  # новое создание заказа уже обрабатывается в checkout
+
+    # Отправляем только если статус изменился
+    if hasattr(instance, '_status_changed') and instance._status_changed:
+        try:
+            send_mail(
+                subject=f'Обновление статуса заказа #{instance.id} — Football Shop',
+                message=f'''
+Здравствуйте!
+
+Статус вашего заказа #{instance.id} изменён на: **{instance.get_status_display()}**
+
+Дата изменения: {instance.created_at|date:"d.m.Y H:i"}
+
+Перейдите в личный кабинет, чтобы посмотреть подробности.
+
+С уважением,
+Команда Football Shop
+                ''',
+                from_email=None,
+                recipient_list=[instance.user.email],
+                fail_silently=True,
+            )
+        except:
+            pass
