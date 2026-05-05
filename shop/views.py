@@ -1,12 +1,12 @@
 from django.shortcuts import render, get_object_or_404, redirect
-from .models import Product, Category
 from django.contrib import messages
-
+from django.contrib.auth.decorators import login_required
+from .models import Order, OrderItem, Product
 def index(request):
     """Главная страница"""
     products = Product.objects.filter(is_available=True)
 
-    # === ФИЛЬТР "ТОЛЬКО В НАЛИЧИИ" ===
+
     only_in_stock = request.GET.get('in_stock') == '1'
     if only_in_stock:
         products = products.filter(stock__gt=0)
@@ -113,28 +113,35 @@ def search(request):
 # ====================== КОРЗИНА ======================
 
 def cart_add(request, product_id):
-    """Добавить товар в корзину (только для авторизованных)"""
+    """Добавить товар в корзину — с жёсткой проверкой остатка"""
     if not request.user.is_authenticated:
-        messages.warning(request, 'Сначала авторизируйтесь или зарегистрируйтесь, чтобы добавить товар в корзину')
+        messages.warning(request, 'Сначала авторизируйтесь или зарегистрируйтесь')
         return redirect('accounts:login')
 
     product = get_object_or_404(Product, id=product_id)
     quantity = int(request.POST.get('quantity', 1))
 
-    if product.stock < quantity:
-        messages.error(request, f'На складе только {product.stock} шт.')
+    # ЖЁСТКАЯ ПРОВЕРКА
+    if quantity > product.stock:
+        messages.error(request, f'На складе только {product.stock} шт. Вы не можете добавить больше.')
         return redirect('shop:product_detail', slug=product.slug)
 
-    # Уменьшаем остаток
+    if quantity < 1:
+        messages.error(request, 'Количество должно быть минимум 1')
+        return redirect('shop:product_detail', slug=product.slug)
+
+    # Уменьшаем остаток на складе
     product.stock -= quantity
     product.save()
 
     # Добавляем в корзину
     cart = request.session.get('cart', {})
-    if str(product_id) in cart:
-        cart[str(product_id)]['quantity'] += quantity
+    pid_str = str(product_id)
+
+    if pid_str in cart:
+        cart[pid_str]['quantity'] += quantity
     else:
-        cart[str(product_id)] = {
+        cart[pid_str] = {
             'name': product.name,
             'price': str(product.price),
             'quantity': quantity,
@@ -150,31 +157,51 @@ def cart_add(request, product_id):
 
 def cart_update(request, product_id):
     """Изменить количество товара в корзине"""
-    if request.method == 'POST':
-        new_quantity = int(request.POST.get('quantity', 1))
-        cart = request.session.get('cart', {})
-        pid_str = str(product_id)
+    if request.method != 'POST':
+        return redirect('shop:cart')
 
-        if pid_str in cart:
-            old_quantity = cart[pid_str]['quantity']
-            difference = new_quantity - old_quantity
+    new_quantity = int(request.POST.get('quantity', 1))
+    cart = request.session.get('cart', {})
+    pid_str = str(product_id)
 
-            # Обновляем остаток на складе
-            try:
-                product = Product.objects.get(id=product_id)
-                product.stock -= difference
-                if product.stock < 0:
-                    product.stock = 0
-                product.save()
-            except Product.DoesNotExist:
-                pass
+    if pid_str not in cart:
+        return redirect('shop:cart')
 
-            cart[pid_str]['quantity'] = new_quantity
-            request.session['cart'] = cart
-            request.session.modified = True
+    old_quantity = cart[pid_str]['quantity']
+    difference = new_quantity - old_quantity
 
+    if new_quantity < 1:
+        messages.error(request, 'Количество должно быть минимум 1')
+        return redirect('shop:cart')
+
+    # Проверка остатка при увеличении количества
+    if difference > 0:
+        try:
+            product = Product.objects.get(id=product_id)
+            if difference > product.stock:
+                messages.error(request, f'На складе только {product.stock} шт.')
+                return redirect('shop:cart')
+            product.stock -= difference
+            product.save()
+        except Product.DoesNotExist:
+            pass
+
+    # При уменьшении — возвращаем на склад
+    elif difference < 0:
+        try:
+            product = Product.objects.get(id=product_id)
+            product.stock += abs(difference)
+            product.save()
+        except Product.DoesNotExist:
+            pass
+
+    # Обновляем количество в корзине
+    cart[pid_str]['quantity'] = new_quantity
+    request.session['cart'] = cart
+    request.session.modified = True
+
+    messages.success(request, 'Количество обновлено')
     return redirect('shop:cart')
-
 
 def cart_remove(request, product_id):
     """Удалить товар из корзины"""
@@ -211,4 +238,74 @@ def cart(request):
     return render(request, 'shop/cart.html', {
         'cart_items': cart_items,
         'total': round(total, 2)
+    })
+
+
+@login_required
+def checkout(request):
+    """Оформление заказа"""
+    cart = request.session.get('cart', {})
+
+    if not cart:
+        messages.warning(request, 'Корзина пуста')
+        return redirect('shop:cart')
+
+    # Подсчёт итоговой суммы + subtotal для каждого товара
+    total = 0
+    for item in cart.values():
+        price = float(item['price'])
+        quantity = item['quantity']
+        item['subtotal'] = round(price * quantity, 2)
+        total += item['subtotal']
+
+    if request.method == 'POST':
+        address = request.POST.get('address')
+        phone = request.POST.get('phone')
+        comment = request.POST.get('comment', '')
+
+        if not address or not phone:
+            messages.error(request, 'Укажите адрес и телефон')
+            return redirect('shop:checkout')
+
+        # Создаём заказ
+        order = Order.objects.create(
+            user=request.user,
+            total_amount=total,
+            address=address,
+            phone=phone,
+            comment=comment,
+            status='pending'
+        )
+
+        # Добавляем товары в заказ
+        for pid_str, item in cart.items():
+            product = Product.objects.get(id=int(pid_str))
+            OrderItem.objects.create(
+                order=order,
+                product=product,
+                quantity=item['quantity'],
+                price_at_purchase=float(item['price'])
+            )
+
+        # Очищаем корзину
+        request.session['cart'] = {}
+        request.session.modified = True
+
+        messages.success(request, f'Заказ #{order.id} успешно оформлен!')
+        return redirect('accounts:profile')
+
+    # Данные из профиля
+    try:
+        profile = request.user.profile
+        initial_address = profile.address or ''
+        initial_phone = profile.phone or ''
+    except:
+        initial_address = ''
+        initial_phone = ''
+
+    return render(request, 'shop/checkout.html', {
+        'cart': cart,
+        'total': round(total, 2),
+        'initial_address': initial_address,
+        'initial_phone': initial_phone,
     })

@@ -44,12 +44,16 @@
             <p class="lead text-muted">{{ product.description }}</p>
 
             <!-- Форма добавления в корзину -->
-            <form method="post" action="{% url 'shop:cart_add' product.id %}" class="mt-5">
+            <form method="post" action="{% url 'shop:cart_add' product.id %}">
                 {% csrf_token %}
                 <div class="row align-items-end">
                     <div class="col-5">
                         <label class="form-label">Количество</label>
-                        <input type="number" name="quantity" value="1" min="1" max="{{ product.stock|default:10 }}"
+                        <input type="number"
+                               name="quantity"
+                               value="1"
+                               min="1"
+                               max="{{ product.stock|default:1 }}"
                                class="form-control form-control-lg text-center">
                     </div>
                     <div class="col-7">

@@ -84,35 +84,35 @@ class Order(models.Model):
         ('cancelled', 'Отменён'),
     ]
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending')
-    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-    delivery_address = models.TextField(blank=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+    user = models.ForeignKey(User, on_delete=models.CASCADE, verbose_name="Пользователь")
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name="Дата создания")
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='pending', verbose_name="Статус")
+    total_amount = models.DecimalField(max_digits=10, decimal_places=2, default=0, verbose_name="Сумма заказа")
+    address = models.TextField(verbose_name="Адрес доставки", blank=True, null=True)
+    phone = models.CharField(max_length=20, verbose_name="Телефон", blank=True, null=True)
+    comment = models.TextField(blank=True, null=True, verbose_name="Комментарий к заказу")
 
     class Meta:
+        ordering = ['-created_at']
         verbose_name = "Заказ"
         verbose_name_plural = "Заказы"
-        ordering = ['-created_at']
 
     def __str__(self):
-        return f"Заказ #{self.id} от {self.user.username}"
+        return f"Заказ #{self.id} — {self.user.username}"
 
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
-    product = models.ForeignKey(Product, on_delete=models.CASCADE)
-    quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
-    price_at_purchase = models.DecimalField(max_digits=10, decimal_places=2)
-
-    class Meta:
-        verbose_name = "Товар в заказе"
-        verbose_name_plural = "Товары в заказе"
+    product = models.ForeignKey('Product', on_delete=models.PROTECT)
+    quantity = models.PositiveIntegerField()
+    price_at_purchase = models.DecimalField(max_digits=10, decimal_places=2)  # цена на момент покупки
 
     def __str__(self):
         return f"{self.product.name} × {self.quantity}"
 
+    class Meta:
+        verbose_name = "Товар в заказе"
+        verbose_name_plural = "Товары в заказе"
 
 class Review(models.Model):
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='reviews')
