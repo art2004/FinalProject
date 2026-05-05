@@ -14,6 +14,9 @@ urlpatterns = [
     path('cart/remove/<int:product_id>/', views.cart_remove, name='cart_remove'),
     path('cart/update/<int:product_id>/', views.cart_update, name='cart_update'),
     path('checkout/', views.checkout, name='checkout'),
+    path('order/<int:order_id>/', views.order_detail, name='order_detail'),
+    path('order/<int:order_id>/cancel/', views.cancel_order, name='cancel_order'),
+
     #Поиск
     path('search/', views.search, name='search'),
 ]

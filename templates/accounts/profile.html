@@ -32,7 +32,7 @@
                 </div>
             </div>
 
-            <!-- История заказов -->
+                      <!-- История заказов -->
             <h4 class="mt-5 mb-3">📦 Мои заказы</h4>
 
             {% if orders %}
@@ -50,16 +50,21 @@
                         <tbody>
                             {% for order in orders %}
                             <tr>
-                                <td>#{{ order.id }}</td>
+                                <td><strong>#{{ order.id }}</strong></td>
                                 <td>{{ order.created_at|date:"d.m.Y H:i" }}</td>
                                 <td><strong>{{ order.total_amount|floatformat:2 }} ₽</strong></td>
                                 <td>
-                                    <span class="badge {% if order.status == 'pending' %}bg-warning{% elif order.status == 'confirmed' %}bg-info{% elif order.status == 'shipped' %}bg-primary{% elif order.status == 'delivered' %}bg-success{% else %}bg-secondary{% endif %}">
+                                    <span class="badge
+                                        {% if order.status == 'pending' %}bg-warning
+                                        {% elif order.status == 'confirmed' %}bg-info
+                                        {% elif order.status == 'shipped' %}bg-primary
+                                        {% elif order.status == 'delivered' %}bg-success
+                                        {% else %}bg-secondary{% endif %}">
                                         {{ order.get_status_display }}
                                     </span>
                                 </td>
                                 <td>
-                                    <a href="#" class="btn btn-sm btn-outline-primary">Подробнее</a>
+                                    <a href="{% url 'shop:order_detail' order.id %}" class="btn btn-sm btn-outline-primary">Подробнее</a>
                                 </td>
                             </tr>
                             {% endfor %}

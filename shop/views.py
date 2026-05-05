@@ -243,14 +243,14 @@ def cart(request):
 
 @login_required
 def checkout(request):
-    """Оформление заказа"""
+    """Оформление заказа + отправка письма на почту"""
     cart = request.session.get('cart', {})
 
     if not cart:
         messages.warning(request, 'Корзина пуста')
         return redirect('shop:cart')
 
-    # Подсчёт итоговой суммы + subtotal для каждого товара
+    # Подсчёт итоговой суммы
     total = 0
     for item in cart.values():
         price = float(item['price'])
@@ -291,10 +291,35 @@ def checkout(request):
         request.session['cart'] = {}
         request.session.modified = True
 
-        messages.success(request, f'Заказ #{order.id} успешно оформлен!')
+        # === ОТПРАВКА ПИСЬМА ===
+        try:
+            from django.core.mail import send_mail
+            from django.template.loader import render_to_string
+
+            subject = f'Заказ #{order.id} успешно оформлен — Football Shop'
+
+            html_message = render_to_string('shop/email_order_confirmation.html', {
+                'order': order,
+                'user': request.user,
+                'items': order.items.all(),
+                'total': total,
+            })
+
+            send_mail(
+                subject=subject,
+                message='',
+                from_email=None,
+                recipient_list=[request.user.email],
+                html_message=html_message,
+                fail_silently=False,
+            )
+            messages.success(request, f'Заказ #{order.id} оформлен! Письмо отправлено на вашу почту.')
+        except Exception as e:
+            messages.warning(request, f'Заказ #{order.id} оформлен, но письмо отправить не удалось.')
+
         return redirect('accounts:profile')
 
-    # Данные из профиля
+    # Данные из профиля для автозаполнения
     try:
         profile = request.user.profile
         initial_address = profile.address or ''
@@ -309,3 +334,40 @@ def checkout(request):
         'initial_address': initial_address,
         'initial_phone': initial_phone,
     })
+
+@login_required
+def order_detail(request, order_id):
+    """Детальная страница заказа"""
+    order = get_object_or_404(Order, id=order_id, user=request.user)
+
+    # Добавляем subtotal для каждого товара
+    for item in order.items.all():
+        item.subtotal = round(float(item.price_at_purchase) * item.quantity, 2)
+
+    return render(request, 'shop/order_detail.html', {
+        'order': order,
+    })
+
+@login_required
+def cancel_order(request, order_id):
+    """Отмена заказа пользователем"""
+    order = get_object_or_404(Order, id=order_id, user=request.user)
+
+    if order.status != 'pending':
+        messages.error(request, 'Только заказы в статусе "В обработке" можно отменить.')
+        return redirect('shop:order_detail', order_id=order.id)
+
+    # Возвращаем товары на склад
+    for item in order.items.all():
+        try:
+            product = item.product
+            product.stock += item.quantity
+            product.save()
+        except:
+            pass
+
+    order.status = 'cancelled'
+    order.save()
+
+    messages.success(request, f'Заказ #{order.id} успешно отменён. Товары возвращены на склад.')
+    return redirect('accounts:profile')

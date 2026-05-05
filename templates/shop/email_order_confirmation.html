@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Ваш заказ #{{ order.id }}</title>
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6;">
+    <h2>Спасибо за заказ, {{ user.username }}!</h2>
+    <p>Ваш заказ <strong>#{{ order.id }}</strong> успешно оформлен.</p>
+
+    <p><strong>Дата:</strong> {{ order.created_at|date:"d.m.Y H:i" }}<br>
+       <strong>Статус:</strong> {{ order.get_status_display }}<br>
+       <strong>Сумма:</strong> {{ total|floatformat:2 }} ₽</p>
+
+    <h3>Состав заказа:</h3>
+    <table border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; width: 100%;">
+        <tr style="background-color: #f0f0f0;">
+            <th>Товар</th>
+            <th>Кол-во</th>
+            <th>Цена</th>
+            <th>Сумма</th>
+        </tr>
+        {% for item in items %}
+        <tr>
+            <td>{{ item.product.name }}</td>
+            <td>{{ item.quantity }}</td>
+            <td>{{ item.price_at_purchase|floatformat:2 }} ₽</td>
+            <td>{{ total|floatformat:2 }} ₽</td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <p><strong>Адрес доставки:</strong> {{ order.address }}</p>
+    <p><strong>Телефон:</strong> {{ order.phone }}</p>
+
+    {% if order.comment %}
+    <p><strong>Комментарий:</strong> {{ order.comment }}</p>
+    {% endif %}
+
+    <p>Спасибо, что выбрали Football Shop! 🎉</p>
+</body>
+</html>

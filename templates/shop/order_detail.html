@@ -1,0 +1,73 @@
+{% extends 'base.html' %}
+{% block title %}Заказ #{{ order.id }} — Football Shop{% endblock %}
+
+{% block content %}
+<div class="container">
+    <h2 class="mb-4">Заказ #{{ order.id }}</h2>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Дата:</strong> {{ order.created_at|date:"d.m.Y H:i" }}</p>
+                    <p><strong>Статус:</strong> 
+                        <span class="badge
+                            {% if order.status == 'pending' %}bg-warning
+                            {% elif order.status == 'confirmed' %}bg-info
+                            {% elif order.status == 'shipped' %}bg-primary
+                            {% elif order.status == 'delivered' %}bg-success
+                            {% else %}bg-secondary{% endif %}">
+                            {{ order.get_status_display }}
+                        </span>
+                    </p>
+                </div>
+                <div class="col-md-6 text-end">
+                    <p><strong>Сумма заказа:</strong> <span class="fs-4 text-success">{{ order.total_amount|floatformat:2 }} ₽</span></p>
+                </div>
+            </div>
+            <hr>
+            <p><strong>Адрес доставки:</strong> {{ order.address }}</p>
+            <p><strong>Телефон:</strong> {{ order.phone }}</p>
+            {% if order.comment %}
+                <p><strong>Комментарий:</strong> {{ order.comment }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <h5 class="mb-3">Товары в заказе</h5>
+    <div class="table-responsive">
+        <table class="table table-bordered">
+            <thead class="table-light">
+                <tr>
+                    <th>Товар</th>
+                    <th class="text-end">Цена за шт.</th>
+                    <th class="text-center">Кол-во</th>
+                    <th class="text-end">Сумма</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in order.items.all %}
+                <tr>
+                    <td>{{ item.product.name }}</td>
+                    <td class="text-end">{{ item.price_at_purchase|floatformat:2 }} ₽</td>
+                    <td class="text-center">{{ item.quantity }}</td>
+                    <td class="text-end">{{ order.total_amount|floatformat:2 }} ₽</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    <!-- Кнопка отмены заказа -->
+    {% if order.status == 'pending' %}
+    <div class="mt-4">
+        <a href="{% url 'shop:cancel_order' order.id %}"
+           class="btn btn-danger"
+           onclick="return confirm('Вы уверены, что хотите отменить заказ? Товары будут возвращены на склад.')">
+            ❌ Отменить заказ
+        </a>
+    </div>
+    {% endif %}
+
+    <a href="{% url 'accounts:profile' %}" class="btn btn-secondary mt-4">← Вернуться в профиль</a>
+</div>
+{% endblock %}
