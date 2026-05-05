@@ -33,7 +33,7 @@ class OrderAdmin(admin.ModelAdmin):
     readonly_fields = ('created_at', 'total_amount')
     actions = ['make_confirmed', 'make_shipped', 'make_delivered', 'make_cancelled']
 
-    # Встроенная таблица товаров внутри заказа
+    # Встроенная таблица товаров
     class OrderItemInline(admin.TabularInline):
         model = OrderItem
         extra = 0
@@ -50,14 +50,40 @@ class OrderAdmin(admin.ModelAdmin):
             'delivered': 'green',
             'cancelled': 'red'
         }
-        return format_html(
-            '<span style="color: {};">{}</span>',
-            colors.get(obj.status, 'black'),
-            obj.get_status_display()
-        )
+        return format_html('<span style="color: {};">{}</span>', colors.get(obj.status, 'black'), obj.get_status_display())
     status_colored.short_description = 'Статус'
 
-    # Действия массового изменения статуса
+    # Отправка письма при изменении статуса
+    def save_model(self, request, obj, form, change):
+        if change and 'status' in form.changed_data:  # статус был изменён
+            try:
+                from django.core.mail import send_mail
+                subject = f'Обновление статуса заказа #{obj.id} — Football Shop'
+                message = f'''
+Здравствуйте!
+
+Статус вашего заказа #{obj.id} изменён на: {obj.get_status_display()}
+
+Дата изменения: {obj.created_at}
+
+Перейдите в личный кабинет, чтобы посмотреть подробности.
+
+С уважением,
+Команда Football Shop
+                '''
+                send_mail(
+                    subject=subject,
+                    message=message,
+                    from_email=None,
+                    recipient_list=[obj.user.email],
+                    fail_silently=True,
+                )
+            except:
+                pass
+
+        super().save_model(request, obj, form, change)
+
+    # Действия массового изменения
     def make_confirmed(self, request, queryset):
         queryset.update(status='confirmed')
         self.message_user(request, "Заказы отмечены как 'Подтверждён'")
@@ -77,7 +103,6 @@ class OrderAdmin(admin.ModelAdmin):
         queryset.update(status='cancelled')
         self.message_user(request, "Заказы отменены")
     make_cancelled.short_description = "Отменить заказы"
-
 
 @admin.register(OrderItem)
 class OrderItemAdmin(admin.ModelAdmin):
