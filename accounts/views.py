@@ -8,7 +8,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import Group
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth import update_session_auth_hash
-from shop.models import Product
+from shop.models import Order, Product   # ← ИСПРАВЛЕНО
 from django.utils.http import urlsafe_base64_decode
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
@@ -59,11 +59,7 @@ def register(request):
             messages.success(request, 'Регистрация прошла успешно! Проверьте почту и подтвердите email.')
             return redirect('accounts:login')
         else:
-            # Красивое логирование ошибок (без HTML)
-            error_list = []
-            for field, errors in form.errors.items():
-                for error in errors:
-                    error_list.append(f"{field}: {error}")
+            error_list = [f"{field}: {error}" for field, errors in form.errors.items() for error in errors]
             logger.warning(f"Неудачная регистрация: {' | '.join(error_list)}")
     else:
         form = RegistrationForm()
@@ -81,8 +77,7 @@ def user_login(request):
             messages.success(request, f'Добро пожаловать, {user.username}!')
             return redirect('shop:index')
         else:
-            username = request.POST.get('username', '')
-            logger.warning(f"Неудачная попытка входа: {username}")
+            logger.warning(f"Неудачная попытка входа: {request.POST.get('username')}")
             messages.error(request, 'Неверное имя пользователя или пароль')
     else:
         form = AuthenticationForm()
@@ -91,21 +86,35 @@ def user_login(request):
 
 @login_required
 def user_logout(request):
-    if request.user.is_authenticated:
-        logger.info(f"Выход пользователя: {request.user.username} (ID: {request.user.id})")
-
+    """Выход из аккаунта + возврат товаров из корзины на склад"""
     cart = request.session.get('cart', {})
+    username = request.user.username
+    user_id = request.user.id
+
     if cart:
+        returned_items = []
         for pid_str, item in cart.items():
             try:
                 product = Product.objects.get(id=int(pid_str))
                 product.stock += item['quantity']
                 product.save()
+                returned_items.append(f"{item['quantity']} шт. '{product.name}'")
             except Product.DoesNotExist:
                 pass
 
-        request.session['cart'] = {}
-        request.session.modified = True
+        if returned_items:
+            logger.info(
+                f"Выход пользователя {username} (ID: {user_id}). "
+                f"Возвращено на склад: {', '.join(returned_items)}"
+            )
+        else:
+            logger.info(f"Выход пользователя {username} (ID: {user_id}) — корзина была пуста")
+    else:
+        logger.info(f"Выход пользователя {username} (ID: {user_id})")
+
+    # Очищаем корзину
+    request.session['cart'] = {}
+    request.session.modified = True
 
     logout(request)
     messages.success(request, 'Вы успешно вышли из аккаунта. Товары из корзины возвращены на склад.')
@@ -116,10 +125,12 @@ def user_logout(request):
 def profile(request):
     try:
         profile = request.user.profile
-    except:
+    except Profile.DoesNotExist:
         profile = None
 
     orders = Order.objects.filter(user=request.user).order_by('-created_at')
+
+    logger.info(f"Пользователь {request.user.username} открыл профиль (заказов: {orders.count()})")
 
     return render(request, 'accounts/profile.html', {
         'profile': profile,
@@ -137,6 +148,7 @@ def edit_profile(request):
         form = ProfileForm(request.POST, request.FILES, instance=profile)
         if form.is_valid():
             form.save()
+            logger.info(f"Пользователь {request.user.username} обновил профиль")
             messages.success(request, 'Профиль успешно обновлён!')
             return redirect('accounts:profile')
     else:
@@ -155,6 +167,7 @@ def change_password(request):
         if form.is_valid():
             user = form.save()
             update_session_auth_hash(request, user)
+            logger.info(f"Пользователь {request.user.username} успешно сменил пароль")
             messages.success(request, 'Пароль успешно изменён!')
             return redirect('accounts:profile')
     else:

@@ -5,11 +5,14 @@ from .models import Order, OrderItem, Product
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.core.mail import send_mail
+import logging
+
+logger = logging.getLogger(__name__)   # ← по лекции
+
 
 def index(request):
     """Главная страница"""
     products = Product.objects.filter(is_available=True)
-
 
     only_in_stock = request.GET.get('in_stock') == '1'
     if only_in_stock:
@@ -92,45 +95,41 @@ def category_products(request, slug):
 
 
 def search(request):
-    """Простой и надёжный поиск (работает с русскими буквами в любом регистре)"""
-    query = request.GET.get('q', '').strip().lower()  # приводим запрос к нижнему регистру
+    """Простой и надёжный поиск"""
+    query = request.GET.get('q', '').strip().lower()
 
-    # Берём все доступные товары
     products = Product.objects.filter(is_available=True)
 
     if query:
-        # Фильтруем на стороне Python — 100% работает с кириллицей
         filtered = []
         for product in products:
             name_lower = product.name.lower()
             desc_lower = product.description.lower() if product.description else ""
             if query in name_lower or query in desc_lower:
                 filtered.append(product)
-
         products = filtered
 
     return render(request, 'shop/search_results.html', {
         'products': products,
-        'query': request.GET.get('q', '').strip()  # оригинальный запрос для отображения
+        'query': request.GET.get('q', '').strip()
     })
+
 
 # ====================== КОРЗИНА ======================
 
+@login_required
 def cart_add(request, product_id):
     """Добавить товар в корзину — с жёсткой проверкой остатка"""
-    if not request.user.is_authenticated:
-        messages.warning(request, 'Сначала авторизируйтесь или зарегистрируйтесь')
-        return redirect('accounts:login')
-
     product = get_object_or_404(Product, id=product_id)
     quantity = int(request.POST.get('quantity', 1))
 
-    # ЖЁСТКАЯ ПРОВЕРКА
     if quantity > product.stock:
+        logger.warning(f"Пользователь {request.user.username} пытался добавить {quantity} шт. '{product.name}', но на складе только {product.stock}")
         messages.error(request, f'На складе только {product.stock} шт. Вы не можете добавить больше.')
         return redirect('shop:product_detail', slug=product.slug)
 
     if quantity < 1:
+        logger.warning(f"Пользователь {request.user.username} указал некорректное количество ({quantity}) для товара '{product.name}'")
         messages.error(request, 'Количество должно быть минимум 1')
         return redirect('shop:product_detail', slug=product.slug)
 
@@ -155,10 +154,12 @@ def cart_add(request, product_id):
     request.session['cart'] = cart
     request.session.modified = True
 
+    logger.info(f"Пользователь {request.user.username} добавил в корзину: {quantity} шт. '{product.name}' (ID: {product.id})")
     messages.success(request, f'{product.name} добавлен в корзину')
     return redirect('shop:product_detail', slug=product.slug)
 
 
+@login_required
 def cart_update(request, product_id):
     """Изменить количество товара в корзине"""
     if request.method != 'POST':
@@ -175,6 +176,7 @@ def cart_update(request, product_id):
     difference = new_quantity - old_quantity
 
     if new_quantity < 1:
+        logger.warning(f"Пользователь {request.user.username} пытался поставить некорректное количество ({new_quantity})")
         messages.error(request, 'Количество должно быть минимум 1')
         return redirect('shop:cart')
 
@@ -183,6 +185,7 @@ def cart_update(request, product_id):
         try:
             product = Product.objects.get(id=product_id)
             if difference > product.stock:
+                logger.warning(f"Пользователь {request.user.username} хотел увеличить количество на {difference} шт., но на складе только {product.stock}")
                 messages.error(request, f'На складе только {product.stock} шт.')
                 return redirect('shop:cart')
             product.stock -= difference
@@ -204,9 +207,12 @@ def cart_update(request, product_id):
     request.session['cart'] = cart
     request.session.modified = True
 
+    logger.info(f"Пользователь {request.user.username} изменил количество товара (ID: {product_id}) с {old_quantity} на {new_quantity}")
     messages.success(request, 'Количество обновлено')
     return redirect('shop:cart')
 
+
+@login_required
 def cart_remove(request, product_id):
     """Удалить товар из корзины"""
     cart = request.session.get('cart', {})
@@ -225,14 +231,17 @@ def cart_remove(request, product_id):
         request.session['cart'] = cart
         request.session.modified = True
 
+        logger.info(f"Пользователь {request.user.username} удалил из корзины товар (ID: {product_id}) — {quantity} шт.")
+        messages.success(request, 'Товар удалён из корзины')
+
     return redirect('shop:cart')
+
 
 def cart(request):
     """Просмотр корзины"""
     cart_items = request.session.get('cart', {})
     total = 0.0
 
-    # Добавляем subtotal для каждого товара
     for pid, item in cart_items.items():
         price = float(item['price'])
         quantity = item['quantity']
@@ -251,6 +260,7 @@ def checkout(request):
     cart = request.session.get('cart', {})
 
     if not cart:
+        logger.warning(f"Пользователь {request.user.username} попытался оформить пустую корзину")
         messages.warning(request, 'Корзина пуста')
         return redirect('shop:cart')
 
@@ -268,6 +278,7 @@ def checkout(request):
         comment = request.POST.get('comment', '')
 
         if not address or not phone:
+            logger.warning(f"Пользователь {request.user.username} не указал адрес или телефон при оформлении заказа")
             messages.error(request, 'Укажите адрес и телефон')
             return redirect('shop:checkout')
 
@@ -295,6 +306,8 @@ def checkout(request):
         request.session['cart'] = {}
         request.session.modified = True
 
+        logger.info(f"Пользователь {request.user.username} успешно оформил заказ #{order.id} на сумму {total} ₽")
+
         # === ОТПРАВКА ПИСЬМА ===
         try:
             from django.core.mail import send_mail
@@ -319,6 +332,7 @@ def checkout(request):
             )
             messages.success(request, f'Заказ #{order.id} оформлен! Письмо отправлено на вашу почту.')
         except Exception as e:
+            logger.error(f"Не удалось отправить email о заказе #{order.id} пользователю {request.user.username}: {e}")
             messages.warning(request, f'Заказ #{order.id} оформлен, но письмо отправить не удалось.')
 
         return redirect('accounts:profile')
@@ -339,18 +353,17 @@ def checkout(request):
         'initial_phone': initial_phone,
     })
 
+
 @login_required
 def order_detail(request, order_id):
     """Детальная страница заказа"""
     order = get_object_or_404(Order, id=order_id, user=request.user)
 
-    # Добавляем subtotal для каждого товара
     for item in order.items.all():
         item.subtotal = round(float(item.price_at_purchase) * item.quantity, 2)
 
-    return render(request, 'shop/order_detail.html', {
-        'order': order,
-    })
+    return render(request, 'shop/order_detail.html', {'order': order})
+
 
 @login_required
 def cancel_order(request, order_id):
@@ -358,6 +371,7 @@ def cancel_order(request, order_id):
     order = get_object_or_404(Order, id=order_id, user=request.user)
 
     if order.status != 'pending':
+        logger.warning(f"Пользователь {request.user.username} пытался отменить заказ #{order.id} в статусе '{order.status}'")
         messages.error(request, 'Только заказы в статусе "В обработке" можно отменить.')
         return redirect('shop:order_detail', order_id=order.id)
 
@@ -373,9 +387,9 @@ def cancel_order(request, order_id):
     order.status = 'cancelled'
     order.save()
 
+    logger.info(f"Пользователь {request.user.username} отменил заказ #{order.id}")
     messages.success(request, f'Заказ #{order.id} успешно отменён. Товары возвращены на склад.')
     return redirect('accounts:profile')
-
 
 @receiver(post_save, sender=Order)
 def send_status_notification(sender, instance, created, **kwargs):
