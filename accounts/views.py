@@ -1,5 +1,5 @@
 from django.shortcuts import render, redirect
-from django.contrib.auth import login, logout, authenticate
+from django.contrib.auth import login, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from .forms import RegistrationForm, ProfileForm
@@ -8,7 +8,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import Group
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth import update_session_auth_hash
-from shop.models import Order, OrderItem, Product
+from shop.models import Product
 from django.utils.http import urlsafe_base64_decode
 from django.contrib.auth.models import User
 from django.contrib.auth.tokens import default_token_generator
@@ -16,32 +16,30 @@ from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 def register(request):
     if request.method == 'POST':
         form = RegistrationForm(request.POST)
         if form.is_valid():
             user = form.save(commit=False)
-            user.is_active = False  # аккаунт неактивен до подтверждения
+            user.is_active = False
             user.save()
 
             Profile.objects.get_or_create(user=user)
 
-            # Добавляем в группу Customer
-            from django.contrib.auth.models import Group
             customer_group = Group.objects.get(name='Customer')
             user.groups.add(customer_group)
 
-            # Генерируем токен для подтверждения
             token = default_token_generator.make_token(user)
             uid = urlsafe_base64_encode(force_bytes(user.pk))
-
-            # Ссылка для активации
             activation_link = request.build_absolute_uri(
                 f"/accounts/activate/{uid}/{token}/"
             )
 
-            # Отправляем письмо
             subject = 'Подтверждение регистрации — Football Shop'
             message = render_to_string('accounts/email_activation.html', {
                 'user': user,
@@ -57,9 +55,16 @@ def register(request):
                 fail_silently=False,
             )
 
+            logger.info(f"Регистрация начата. Письмо с подтверждением отправлено: {user.username} ({user.email})")
             messages.success(request, 'Регистрация прошла успешно! Проверьте почту и подтвердите email.')
             return redirect('accounts:login')
-
+        else:
+            # Красивое логирование ошибок (без HTML)
+            error_list = []
+            for field, errors in form.errors.items():
+                for error in errors:
+                    error_list.append(f"{field}: {error}")
+            logger.warning(f"Неудачная регистрация: {' | '.join(error_list)}")
     else:
         form = RegistrationForm()
 
@@ -72,19 +77,24 @@ def user_login(request):
         if form.is_valid():
             user = form.get_user()
             login(request, user)
+            logger.info(f"Вход выполнен: {user.username} (ID: {user.id})")
             messages.success(request, f'Добро пожаловать, {user.username}!')
             return redirect('shop:index')
         else:
+            username = request.POST.get('username', '')
+            logger.warning(f"Неудачная попытка входа: {username}")
             messages.error(request, 'Неверное имя пользователя или пароль')
     else:
         form = AuthenticationForm()
     return render(request, 'accounts/login.html', {'form': form})
 
+
 @login_required
 def user_logout(request):
-    """Выход из аккаунта + возврат товаров из корзины на склад"""
-    cart = request.session.get('cart', {})
+    if request.user.is_authenticated:
+        logger.info(f"Выход пользователя: {request.user.username} (ID: {request.user.id})")
 
+    cart = request.session.get('cart', {})
     if cart:
         for pid_str, item in cart.items():
             try:
@@ -94,7 +104,6 @@ def user_logout(request):
             except Product.DoesNotExist:
                 pass
 
-        # Очищаем корзину
         request.session['cart'] = {}
         request.session.modified = True
 
@@ -102,15 +111,14 @@ def user_logout(request):
     messages.success(request, 'Вы успешно вышли из аккаунта. Товары из корзины возвращены на склад.')
     return redirect('shop:index')
 
+
 @login_required
 def profile(request):
-
     try:
         profile = request.user.profile
     except:
         profile = None
 
-    # Получаем все заказы пользователя
     orders = Order.objects.filter(user=request.user).order_by('-created_at')
 
     return render(request, 'accounts/profile.html', {
@@ -139,13 +147,14 @@ def edit_profile(request):
         'profile': profile
     })
 
+
 @login_required
 def change_password(request):
     if request.method == 'POST':
         form = PasswordChangeForm(request.user, request.POST)
         if form.is_valid():
             user = form.save()
-            update_session_auth_hash(request, user)  # чтобы не разлогинивало
+            update_session_auth_hash(request, user)
             messages.success(request, 'Пароль успешно изменён!')
             return redirect('accounts:profile')
     else:
@@ -165,8 +174,10 @@ def activate_account(request, uidb64, token):
     if user is not None and default_token_generator.check_token(user, token):
         user.is_active = True
         user.save()
+        logger.info(f"Регистрация завершена успешно: {user.username} (ID: {user.id})")
         messages.success(request, 'Email успешно подтверждён! Теперь вы можете войти.')
         return redirect('accounts:login')
     else:
+        logger.warning(f"Неудачная попытка активации аккаунта (uidb64={uidb64})")
         messages.error(request, 'Ссылка для активации недействительна или устарела.')
         return redirect('accounts:register')
