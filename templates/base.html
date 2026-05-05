@@ -10,7 +10,7 @@
 
     {% block extra_css %}{% endblock %}
 </head>
-<body>
+<body class="d-flex flex-column min-vh-100">
 
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
@@ -23,7 +23,6 @@
             </button>
 
             <div class="collapse navbar-collapse" id="navbarNav">
-                <!-- Поиск -->
                 <form class="d-flex mx-auto" style="max-width: 420px;" method="get" action="{% url 'shop:search' %}">
                     <input type="text" name="q" class="form-control" placeholder="Поиск товаров..." value="{{ request.GET.q }}">
                     <button type="submit" class="btn btn-light ms-2">🔍</button>
@@ -71,7 +70,7 @@
         </div>
     </nav>
 
-    <div class="container mt-4">
+    <div class="container mt-4 flex-grow-1">
         {% if messages %}
             {% for message in messages %}
                 <div class="alert alert-{{ message.tags }} alert-dismissible fade show">
@@ -83,6 +82,160 @@
 
         {% block content %}
         {% endblock %}
+    </div>
+
+    <!-- FOOTER -->
+    <footer class="bg-dark text-white mt-auto">
+        <div class="container py-5">
+            <div class="row">
+
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <h4 class="fw-bold">⚽ Football Shop</h4>
+                    <p class="text-light small">Профессиональная футбольная атрибутика для игроков и настоящих фанатов.</p>
+                    <p class="text-light small">© 2023–2026 Football Shop. Все права защищены.</p>
+                </div>
+
+                <div class="col-lg-2 col-md-6 mb-4">
+                    <h6 class="fw-bold mb-3 text-light">Магазин</h6>
+                    <ul class="list-unstyled">
+                        <li><a href="{% url 'shop:index' %}" class="text-light text-decoration-none">Каталог товаров</a></li>
+                        <li><a href="{% url 'shop:category_products' 'male' %}" class="text-light text-decoration-none">Мужское</a></li>
+                        <li><a href="{% url 'shop:category_products' 'female' %}" class="text-light text-decoration-none">Женское</a></li>
+                        <li><a href="{% url 'shop:category_products' 'kids' %}" class="text-light text-decoration-none">Детское</a></li>
+                        <li><a href="{% url 'shop:category_products' 'unisex' %}" class="text-light text-decoration-none">Инвентарь</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-lg-2 col-md-6 mb-4">
+                    <h6 class="fw-bold mb-3 text-light">Информация</h6>
+                    <ul class="list-unstyled">
+                        <li><a href="#" class="text-light text-decoration-none" data-bs-toggle="modal" data-bs-target="#aboutModal">О нас</a></li>
+                        <li><a href="#" class="text-light text-decoration-none" data-bs-toggle="modal" data-bs-target="#deliveryModal">Доставка и оплата</a></li>
+                        <li><a href="#" class="text-light text-decoration-none" data-bs-toggle="modal" data-bs-target="#guaranteeModal">Гарантия и возврат</a></li>
+                        <li><a href="#" class="text-light text-decoration-none" data-bs-toggle="modal" data-bs-target="#contactsModal">Контакты</a></li>
+                    </ul>
+                </div>
+
+                <div class="col-lg-4 col-md-6 mb-4">
+                    <h6 class="fw-bold mb-3 text-light">Контакты</h6>
+                    <p class="mb-1"><i class="bi bi-envelope"></i> <span class="text-light">footballshop@yandex.ru</span></p>
+                    <p class="mb-1"><i class="bi bi-telephone"></i> <span class="text-light">+7 (495) 777-88-99</span></p>
+                    <p><i class="bi bi-geo-alt"></i> <span class="text-light">Москва, Ленинградский проспект, 45</span></p>
+
+                    <div class="mt-4">
+                        <a href="#" class="text-light me-3 fs-4"><i class="bi bi-telegram"></i></a>
+                        <a href="#" class="text-light me-3 fs-4"><i class="bi bi-instagram"></i></a>
+                        <a href="#" class="text-light me-3 fs-4"><i class="bi bi-vk"></i></a>
+                        <a href="#" class="text-light fs-4"><i class="bi bi-youtube"></i></a>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="border-top border-secondary py-3 text-center small text-light">
+            © 2023–2026 Football Shop. Все права защищены.
+        </div>
+    </footer>
+
+    <!-- Модальное окно "О нас" -->
+    <div class="modal fade" id="aboutModal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">О компании Football Shop</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Football Shop</strong> — современный интернет-магазин профессиональной футбольной атрибутики, основанный в 2023 году в Москве.</p>
+                    <p>Мы работаем для тех, кто действительно живёт футболом.</p>
+                    <h6 class="mt-4">Почему выбирают нас:</h6>
+                    <ul>
+                        <li>Только оригинальная продукция</li>
+                        <li>Быстрая доставка по всей России</li>
+                        <li>Гарантия качества</li>
+                        <li>Профессиональные консультации</li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно "Доставка и оплата" -->
+    <div class="modal fade" id="deliveryModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Доставка и оплата</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Доставка:</strong></p>
+                    <ul>
+                        <li>По Москве и МО — от 1 до 3 дней</li>
+                        <li>По России — от 3 до 7 дней (СДЭК / Boxberry)</li>
+                        <li>Самовывоз — бесплатно (Москва, Ленинградский проспект 45)</li>
+                    </ul>
+                    <p><strong>Оплата:</strong></p>
+                    <ul>
+                        <li>Банковской картой онлайн</li>
+                        <li>При получении (наложенный платёж)</li>
+                        <li>СБП (быстрый перевод)</li>
+                    </ul>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно "Гарантия и возврат" -->
+    <div class="modal fade" id="guaranteeModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Гарантия и возврат</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p>На все товары предоставляется гарантия 14 дней с момента получения.</p>
+                    <p>Вы можете вернуть товар, если:</p>
+                    <ul>
+                        <li>Он не подошёл по размеру</li>
+                        <li>Есть заводской брак</li>
+                        <li>Товар не соответствует описанию</li>
+                    </ul>
+                    <p class="small text-muted">Возврат возможен только в случае сохранения товарного вида и упаковки.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Модальное окно "Контакты" -->
+    <div class="modal fade" id="contactsModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Контакты</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Email:</strong> footballshop@yandex.ru</p>
+                    <p><strong>Телефон:</strong> +7 (495) 777-88-99</p>
+                    <p><strong>Адрес:</strong> Москва, Ленинградский проспект, 45</p>
+                    <p class="mt-3">Мы отвечаем на сообщения с 9:00 до 21:00 по московскому времени.</p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
