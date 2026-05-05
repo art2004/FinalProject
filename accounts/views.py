@@ -8,8 +8,7 @@ from django.contrib.auth.forms import AuthenticationForm
 from django.contrib.auth.models import Group
 from django.contrib.auth.forms import PasswordChangeForm
 from django.contrib.auth import update_session_auth_hash
-from shop.models import Product
-
+from shop.models import Order, OrderItem, Product
 
 def register(request):
     if request.method == 'POST':
@@ -69,26 +68,21 @@ def user_logout(request):
 
 @login_required
 def profile(request):
-    user = request.user
-    profile_obj = user.profile
 
-    # Определяем роль
-    if user.groups.filter(name="Manager").exists():
-        role = "Менеджер"
-        role_class = "bg-warning"
-    elif user.groups.filter(name="Customer").exists():
-        role = "Покупатель"
-        role_class = "bg-success"
-    else:
-        role = "Без роли"
-        role_class = "bg-secondary"
+    try:
+        profile = request.user.profile
+    except:
+        profile = None
 
-    context = {
-        'profile': profile_obj,
-        'role': role,
-        'role_class': role_class,
-    }
-    return render(request, 'accounts/profile.html', context)
+    # Получаем все заказы пользователя
+    orders = Order.objects.filter(user=request.user).order_by('-created_at')
+
+    return render(request, 'accounts/profile.html', {
+        'profile': profile,
+        'orders': orders,
+        'role': 'Manager' if request.user.groups.filter(name='Manager').exists() else 'Customer',
+        'role_class': 'bg-success' if request.user.groups.filter(name='Manager').exists() else 'bg-primary',
+    })
 
 
 @login_required
