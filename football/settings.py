@@ -157,15 +157,38 @@ LOG_DIR = BASE_DIR / 'logs'
 os.makedirs(LOG_DIR, exist_ok=True)
 
 logging.basicConfig(
-    level=logging.INFO,                    # INFO и выше будут записываться
+    level=logging.INFO,
     format='%(asctime)s | %(name)s | %(levelname)s | %(message)s',
     datefmt='%Y-%m-%d %H:%M:%S',
     handlers=[
         RotatingFileHandler(
             LOG_DIR / 'football.log',
-            maxBytes=5 * 1024 * 1024,      # 5 МБ
-            backupCount=5,                 # храним 5 файлов
+            maxBytes=5 * 1024 * 1024,
+            backupCount=5,
             encoding='utf-8'
         )
     ]
 )
+
+class CleanAutoReloadFilter(logging.Filter):
+    def filter(self, record):
+        msg = record.getMessage()
+
+        if 'changed, reloading' in msg:
+            file_path = msg.split('changed, reloading')[0].strip()
+            record.msg = f"Сервер Django перезагружен — изменён файл: {file_path}"
+            record.args = ()
+            return True
+
+        if 'Watching for file changes with StatReloader' in msg:
+            record.msg = "Django Dev Server: запущен мониторинг изменений файлов"
+            record.args = ()
+            return True
+
+        return True  # пропускаем другие сообщения
+
+
+# Применяем фильтр
+autoreload_logger = logging.getLogger('django.utils.autoreload')
+autoreload_logger.addFilter(CleanAutoReloadFilter())
+autoreload_logger.setLevel(logging.INFO)   # оставляем INFO, но делаем красивым
