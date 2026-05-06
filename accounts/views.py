@@ -31,36 +31,39 @@ def register(request):
 
             Profile.objects.get_or_create(user=user)
 
-            customer_group = Group.objects.get(name='Customer')
+            # Добавляем пользователя в группу Customer
+            customer_group = Group.objects.get_or_create(name='Customer')[0]
             user.groups.add(customer_group)
 
-            token = default_token_generator.make_token(user)
-            uid = urlsafe_base64_encode(force_bytes(user.pk))
-            activation_link = request.build_absolute_uri(
-                f"/accounts/activate/{uid}/{token}/"
-            )
+            # === SMTP Яндекс — отправка письма подтверждения ===
+            try:
+                uid = urlsafe_base64_encode(force_bytes(user.pk))
+                token = default_token_generator.make_token(user)
+                activation_url = request.build_absolute_uri(
+                    reverse('accounts:activate_account', kwargs={'uidb64': uid, 'token': token})
+                )
 
-            subject = 'Подтверждение регистрации — Football Shop'
-            message = render_to_string('accounts/email_activation.html', {
-                'user': user,
-                'activation_link': activation_link,
-            })
+                html_message = render_to_string('accounts/activation_email.html', {
+                    'user': user,
+                    'activation_url': activation_url,
+                })
 
-            send_mail(
-                subject=subject,
-                message='',
-                from_email=None,
-                recipient_list=[user.email],
-                html_message=message,
-                fail_silently=False,
-            )
+                send_mail(
+                    subject='Подтверждение email — Football Shop',
+                    message=html_message,
+                    from_email=None,
+                    recipient_list=[user.email],
+                    fail_silently=True,          # ← важно!
+                )
 
-            logger.info(f"Регистрация начата. Письмо с подтверждением отправлено: {user.username} ({user.email})")
-            messages.success(request, 'Регистрация прошла успешно! Проверьте почту и подтвердите email.')
-            return redirect('accounts:login')
-        else:
-            error_list = [f"{field}: {error}" for field, errors in form.errors.items() for error in errors]
-            logger.warning(f"Неудачная регистрация: {' | '.join(error_list)}")
+                messages.success(request, 'Регистрация прошла успешно! Проверьте почту для подтверждения аккаунта.')
+                return redirect('accounts:login')
+
+            except Exception as e:
+                logger.error(f"Ошибка отправки письма подтверждения для {user.email}: {e}")
+                messages.warning(request, 'Аккаунт создан, но письмо подтверждения не отправлено.')
+                return redirect('accounts:login')
+
     else:
         form = RegistrationForm()
 
