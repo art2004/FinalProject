@@ -1,4 +1,13 @@
 <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+</body>
+</html><!DOCTYPE html>
 <html>
 <head>
     <meta charset="utf-8">
@@ -25,7 +34,7 @@
             <td>{{ item.product.name }}</td>
             <td>{{ item.quantity }}</td>
             <td>{{ item.price_at_purchase|floatformat:2 }} ₽</td>
-            <td>{{ total|floatformat:2 }} ₽</td>
+            <td>{{ item.subtotal|floatformat:2 }} ₽</td>
         </tr>
         {% endfor %}
     </table>

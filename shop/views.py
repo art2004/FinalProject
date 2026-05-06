@@ -359,10 +359,9 @@ def order_detail(request, order_id):
     """Детальная страница заказа"""
     order = get_object_or_404(Order, id=order_id, user=request.user)
 
-    for item in order.items.all():
-        item.subtotal = round(float(item.price_at_purchase) * item.quantity, 2)
-
-    return render(request, 'shop/order_detail.html', {'order': order})
+    return render(request, 'shop/order_detail.html', {
+        'order': order
+    })
 
 
 @login_required

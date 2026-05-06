@@ -10,7 +10,7 @@
             <div class="row">
                 <div class="col-md-6">
                     <p><strong>Дата:</strong> {{ order.created_at|date:"d.m.Y H:i" }}</p>
-                    <p><strong>Статус:</strong> 
+                    <p><strong>Статус:</strong>
                         <span class="badge
                             {% if order.status == 'pending' %}bg-warning
                             {% elif order.status == 'confirmed' %}bg-info
@@ -51,7 +51,8 @@
                     <td>{{ item.product.name }}</td>
                     <td class="text-end">{{ item.price_at_purchase|floatformat:2 }} ₽</td>
                     <td class="text-center">{{ item.quantity }}</td>
-                    <td class="text-end">{{ order.total_amount|floatformat:2 }} ₽</td>
+                    <td class="text-end">{{ item.subtotal|floatformat:2 }} ₽</td>
+
                 </tr>
                 {% endfor %}
             </tbody>
