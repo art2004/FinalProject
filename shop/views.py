@@ -2,12 +2,9 @@ from django.shortcuts import render, get_object_or_404, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from .models import Order, OrderItem, Product
-from django.db.models.signals import post_save
-from django.dispatch import receiver
-from django.core.mail import send_mail
 import logging
 
-logger = logging.getLogger(__name__)   # ← по лекции
+logger = logging.getLogger(__name__)
 
 
 def index(request):
@@ -18,7 +15,6 @@ def index(request):
     if only_in_stock:
         products = products.filter(stock__gt=0)
 
-    # Фильтр по цене
     min_price = request.GET.get('min_price')
     max_price = request.GET.get('max_price')
     if min_price:
@@ -26,7 +22,6 @@ def index(request):
     if max_price:
         products = products.filter(price__lte=max_price)
 
-    # Сортировка
     sort = request.GET.get('sort')
     if sort == 'price_asc':
         products = products.order_by('price')
@@ -61,12 +56,10 @@ def category_products(request, slug):
 
     products = Product.objects.filter(is_available=True, gender=slug)
 
-    # === ФИЛЬТР "ТОЛЬКО В НАЛИЧИИ" ===
     only_in_stock = request.GET.get('in_stock') == '1'
     if only_in_stock:
         products = products.filter(stock__gt=0)
 
-    # Фильтр по цене
     min_price = request.GET.get('min_price')
     max_price = request.GET.get('max_price')
     if min_price:
@@ -74,7 +67,6 @@ def category_products(request, slug):
     if max_price:
         products = products.filter(price__lte=max_price)
 
-    # Сортировка
     sort = request.GET.get('sort')
     if sort == 'price_asc':
         products = products.order_by('price')
@@ -133,11 +125,9 @@ def cart_add(request, product_id):
         messages.error(request, 'Количество должно быть минимум 1')
         return redirect('shop:product_detail', slug=product.slug)
 
-    # Уменьшаем остаток на складе
     product.stock -= quantity
     product.save()
 
-    # Добавляем в корзину
     cart = request.session.get('cart', {})
     pid_str = str(product_id)
 
@@ -180,7 +170,6 @@ def cart_update(request, product_id):
         messages.error(request, 'Количество должно быть минимум 1')
         return redirect('shop:cart')
 
-    # Проверка остатка при увеличении количества
     if difference > 0:
         try:
             product = Product.objects.get(id=product_id)
@@ -192,8 +181,6 @@ def cart_update(request, product_id):
             product.save()
         except Product.DoesNotExist:
             pass
-
-    # При уменьшении — возвращаем на склад
     elif difference < 0:
         try:
             product = Product.objects.get(id=product_id)
@@ -202,7 +189,6 @@ def cart_update(request, product_id):
         except Product.DoesNotExist:
             pass
 
-    # Обновляем количество в корзине
     cart[pid_str]['quantity'] = new_quantity
     request.session['cart'] = cart
     request.session.modified = True
@@ -256,7 +242,7 @@ def cart(request):
 
 @login_required
 def checkout(request):
-    """Оформление заказа + отправка письма на почту"""
+    """Оформление заказа (без отправки email)"""
     cart = request.session.get('cart', {})
 
     if not cart:
@@ -264,7 +250,6 @@ def checkout(request):
         messages.warning(request, 'Корзина пуста')
         return redirect('shop:cart')
 
-    # Подсчёт итоговой суммы
     total = 0
     for item in cart.values():
         price = float(item['price'])
@@ -282,7 +267,6 @@ def checkout(request):
             messages.error(request, 'Укажите адрес и телефон')
             return redirect('shop:checkout')
 
-        # Создаём заказ
         order = Order.objects.create(
             user=request.user,
             total_amount=total,
@@ -292,7 +276,6 @@ def checkout(request):
             status='pending'
         )
 
-        # Добавляем товары в заказ
         for pid_str, item in cart.items():
             product = Product.objects.get(id=int(pid_str))
             OrderItem.objects.create(
@@ -302,42 +285,15 @@ def checkout(request):
                 price_at_purchase=float(item['price'])
             )
 
-        # Очищаем корзину
         request.session['cart'] = {}
         request.session.modified = True
 
         logger.info(f"Пользователь {request.user.username} успешно оформил заказ #{order.id} на сумму {total} ₽")
-
-        # === ОТПРАВКА ПИСЬМА ===
-        try:
-            from django.core.mail import send_mail
-            from django.template.loader import render_to_string
-
-            subject = f'Заказ #{order.id} успешно оформлен — Football Shop'
-
-            html_message = render_to_string('shop/email_order_confirmation.html', {
-                'order': order,
-                'user': request.user,
-                'items': order.items.all(),
-                'total': total,
-            })
-
-            send_mail(
-                subject=subject,
-                message='',
-                from_email=None,
-                recipient_list=[request.user.email],
-                html_message=html_message,
-                fail_silently=True,
-            )
-            messages.success(request, f'Заказ #{order.id} оформлен! Письмо отправлено на вашу почту.')
-        except Exception as e:
-            logger.error(f"Не удалось отправить email о заказе #{order.id} пользователю {request.user.username}: {e}")
-            messages.warning(request, f'Заказ #{order.id} оформлен, но письмо отправить не удалось.')
+        messages.success(request, f'Заказ #{order.id} успешно оформлен!')
 
         return redirect('accounts:profile')
 
-    # Данные из профиля для автозаполнения
+    # автозаполнение из профиля
     try:
         profile = request.user.profile
         initial_address = profile.address or ''
@@ -358,10 +314,7 @@ def checkout(request):
 def order_detail(request, order_id):
     """Детальная страница заказа"""
     order = get_object_or_404(Order, id=order_id, user=request.user)
-
-    return render(request, 'shop/order_detail.html', {
-        'order': order
-    })
+    return render(request, 'shop/order_detail.html', {'order': order})
 
 
 @login_required
@@ -374,7 +327,6 @@ def cancel_order(request, order_id):
         messages.error(request, 'Только заказы в статусе "В обработке" можно отменить.')
         return redirect('shop:order_detail', order_id=order.id)
 
-    # Возвращаем товары на склад
     for item in order.items.all():
         try:
             product = item.product
@@ -389,33 +341,3 @@ def cancel_order(request, order_id):
     logger.info(f"Пользователь {request.user.username} отменил заказ #{order.id}")
     messages.success(request, f'Заказ #{order.id} успешно отменён. Товары возвращены на склад.')
     return redirect('accounts:profile')
-
-@receiver(post_save, sender=Order)
-def send_status_notification(sender, instance, created, **kwargs):
-    """Отправляем письмо пользователю при изменении статуса заказа"""
-    if created:
-        return  # новое создание заказа уже обрабатывается в checkout
-
-    # Отправляем только если статус изменился
-    if hasattr(instance, '_status_changed') and instance._status_changed:
-        try:
-            send_mail(
-                subject=f'Обновление статуса заказа #{instance.id} — Football Shop',
-                message=f'''
-Здравствуйте!
-
-Статус вашего заказа #{instance.id} изменён на: **{instance.get_status_display()}**
-
-Дата изменения: {instance.created_at|date:"d.m.Y H:i"}
-
-Перейдите в личный кабинет, чтобы посмотреть подробности.
-
-С уважением,
-Команда Football Shop
-                ''',
-                from_email=None,
-                recipient_list=[instance.user.email],
-                fail_silently=True,
-            )
-        except:
-            pass
