@@ -18,14 +18,19 @@ import os
 load_dotenv()
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
-
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
 
 # Quick-start development settings - unsuitable for production
 # See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
 
-DEBUG = os.getenv('DEBUG', 'True') == 'True'
+# ====================== .env SETTINGS ======================
+
+DEBUG = str(os.getenv('DEBUG', 'False')).lower() in ('true', '1', 't', 'yes')
 
 SECRET_KEY = os.getenv('SECRET_KEY')
 
@@ -41,21 +46,21 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'whitenoise.runserver_nostatic',
     'accounts.apps.AccountsConfig',
     'shop.apps.ShopConfig',
-    'whitenoise.runserver_nostatic',
+
 
 ]
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'django.contrib.sessions.middleware.SessionMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware'
 ]
 
 ROOT_URLCONF = 'football.urls'
