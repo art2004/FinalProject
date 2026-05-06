@@ -21,9 +21,13 @@ CSRF_TRUSTED_ORIGINS = [
 ]
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
+STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
+
+# Исправляем warning — делаем папку static необязательной
+STATICFILES_DIRS = []
+if (BASE_DIR / 'static').exists():
+    STATICFILES_DIRS.append(BASE_DIR / 'static')
 ]
 
 # Quick-start development settings - unsuitable for production
