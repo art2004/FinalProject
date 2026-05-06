@@ -16,6 +16,9 @@ from logging.handlers import RotatingFileHandler
 import os
 
 load_dotenv()
+CSRF_TRUSTED_ORIGINS = [
+    'https://*.onrender.com',
+]
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 STATIC_ROOT = BASE_DIR / 'staticfiles'
@@ -34,7 +37,16 @@ DEBUG = str(os.getenv('DEBUG', 'False')).lower() in ('true', '1', 't', 'yes')
 
 SECRET_KEY = os.getenv('SECRET_KEY')
 
-ALLOWED_HOSTS = os.getenv('ALLOWED_HOSTS', '127.0.0.1,localhost').split(',')
+
+ALLOWED_HOSTS = [
+    '127.0.0.1',
+    'localhost',
+    '.onrender.com',                    # все поддомены Render
+]
+
+# Автоматически добавляем текущий хост Render (самый надёжный способ)
+if 'RENDER_EXTERNAL_HOSTNAME' in os.environ:
+    ALLOWED_HOSTS.append(os.environ['RENDER_EXTERNAL_HOSTNAME'])
 
 
 # Application definition
