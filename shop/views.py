@@ -328,7 +328,7 @@ def checkout(request):
                 from_email=None,
                 recipient_list=[request.user.email],
                 html_message=html_message,
-                fail_silently=False,
+                fail_silently=True,
             )
             messages.success(request, f'Заказ #{order.id} оформлен! Письмо отправлено на вашу почту.')
         except Exception as e:
